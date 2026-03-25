@@ -99,7 +99,7 @@ class AppTheme {
         labelStyle: const TextStyle(color: textSecondary),
         hintStyle: TextStyle(color: textSecondary.withValues(alpha: 0.7)),
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: Colors.white,
         elevation: 0,
         shape: RoundedRectangleBorder(
