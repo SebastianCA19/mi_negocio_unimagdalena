@@ -4,16 +4,18 @@ import 'package:provider/provider.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/auth_provider.dart';
+import 'features/inventory/inventory_provider.dart';
 
 void main() {
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AuthProvider()),
-      ],
-      child: const MyApp(),
-    ),
-  );
+      ChangeNotifierProvider(create: (_) => AuthProvider()),
+      ChangeNotifierProvider(create: (_) => InventoryProvider()),
+    ],
+    child: const MyApp(),
+  )
+  ); 
 }
 
 class MyApp extends StatefulWidget {
