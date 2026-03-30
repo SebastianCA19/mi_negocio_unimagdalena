@@ -78,10 +78,12 @@ class _AuthScreenState extends State<AuthScreen> {
                         color: Colors.white.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: const Icon(
-                        Icons.storefront_outlined,
-                        size: 44,
-                        color: Colors.white,
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Image.asset(
+                          'assets/images/icon.png',
+                          fit: BoxFit.contain,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -132,7 +134,6 @@ class _AuthScreenState extends State<AuthScreen> {
                         style: AppTextStyles.bodySecondary,
                       ),
                       const SizedBox(height: 28),
-
                       AppFormField(
                         label: 'Correo institucional',
                         hint: 'usuario@unimagdalena.edu.co',
@@ -142,13 +143,14 @@ class _AuthScreenState extends State<AuthScreen> {
                           if (value == null || value.trim().isEmpty) {
                             return 'El correo es obligatorio';
                           }
-                          if (!value.trim().endsWith(AppConstants.dominioInstitucional)) {
+                          if (!value
+                              .trim()
+                              .endsWith(AppConstants.dominioInstitucional)) {
                             return 'Debe ser un correo @unimagdalena.edu.co';
                           }
                           return null;
                         },
                       ),
-
                       if (_errorMensaje != null) ...[
                         const SizedBox(height: 12),
                         Container(
@@ -175,7 +177,6 @@ class _AuthScreenState extends State<AuthScreen> {
                           ),
                         ),
                       ],
-
                       const SizedBox(height: 24),
                       AppButton(
                         texto: 'Verificar y entrar',
@@ -183,7 +184,6 @@ class _AuthScreenState extends State<AuthScreen> {
                         isLoading: _isLoading,
                         icono: Icons.login,
                       ),
-
                       const SizedBox(height: 16),
                       Center(
                         child: Text(
