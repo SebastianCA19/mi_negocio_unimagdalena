@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'core/router/app_router.dart';
@@ -6,16 +7,19 @@ import 'core/theme/app_theme.dart';
 import 'features/auth/auth_provider.dart';
 import 'features/inventory/inventory_provider.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await initializeDateFormatting('es_CO', null);
+
   runApp(
     MultiProvider(
       providers: [
-      ChangeNotifierProvider(create: (_) => AuthProvider()),
-      ChangeNotifierProvider(create: (_) => InventoryProvider()),
-    ],
-    child: const MyApp(),
-  )
-  ); 
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => InventoryProvider()),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatefulWidget {

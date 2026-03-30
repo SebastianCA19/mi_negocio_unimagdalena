@@ -2,23 +2,23 @@ import 'package:intl/intl.dart';
 
 class AppFormatters {
   // Formato de fecha para mostrar al usuario: 15/03/2024
-  static final DateFormat fechaDisplay = DateFormat('dd/MM/yyyy', 'es_CO');
+  static DateFormat get fechaDisplay => DateFormat('dd/MM/yyyy', 'es_CO');
 
   // Formato de fecha para guardar en SQLite: 2024-03-15
-  static final DateFormat fechaDb = DateFormat('yyyy-MM-dd');
+  static DateFormat get fechaDb => DateFormat('yyyy-MM-dd');
 
   // Formato de fecha y hora para guardar en SQLite: 2024-03-15 14:30:00
-  static final DateFormat fechaHoraDb = DateFormat('yyyy-MM-dd HH:mm:ss');
+  static DateFormat get fechaHoraDb => DateFormat('yyyy-MM-dd HH:mm:ss');
 
   // Formato de mes y ano para encabezados: Marzo 2024
-  static final DateFormat mesAnio = DateFormat('MMMM yyyy', 'es_CO');
+  static DateFormat get mesAnio => DateFormat('MMMM yyyy', 'es_CO');
 
   // Formato de moneda colombiana: $ 15.000
-  static final NumberFormat moneda = NumberFormat.currency(
-    locale: 'es_CO',
-    symbol: '\$',
-    decimalDigits: 0,
-  );
+  static NumberFormat get moneda => NumberFormat.currency(
+        locale: 'es_CO',
+        symbol: '\$',
+        decimalDigits: 0,
+      );
 
   // Convierte fecha de DB (string) a DateTime
   static DateTime? dbToDate(String? fechaStr) {
