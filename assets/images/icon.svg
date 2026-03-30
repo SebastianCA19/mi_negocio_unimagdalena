@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 450">
+  <path d="M125 100 A75 75 0 0 1 275 100" 
+        fill="none" 
+        stroke="#ffb43c" 
+        stroke-width="35" 
+        stroke-linecap="butt"/>
+
+  <path d="M80 120 L320 120 L320 380 L200 320 L80 380 Z" 
+        fill="#1F4E79"/>
+
+  <circle cx="125" cy="165" r="16" fill="#FFFF"/>
+  <circle cx="275" cy="165" r="16" fill="#FFF"/>
+
+  <text x="185" y="290" 
+        font-family="Arial Black, sans-serif" 
+        font-size="120" 
+        font-weight="900" 
+        font-style="italic"
+        text-anchor="middle" 
+        fill="#FFF">M</text>
+</svg>
