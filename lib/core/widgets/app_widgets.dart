@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
-// ── Boton primario de ancho completo 
+// ── Boton primario de ancho completo
 class AppButton extends StatelessWidget {
   final String texto;
   final VoidCallback? onPressed;
@@ -79,7 +79,7 @@ class AppOutlineButton extends StatelessWidget {
   }
 }
 
-// ── Card base de la app 
+// ── Card base de la app
 class AppCard extends StatelessWidget {
   final Widget child;
   final EdgeInsets? padding;
@@ -107,7 +107,7 @@ class AppCard extends StatelessWidget {
   }
 }
 
-// ── Tarjeta de metrica (financiero) 
+// ── Tarjeta de metrica (financiero)
 class MetricCard extends StatelessWidget {
   final String label;
   final String valor;
@@ -178,11 +178,13 @@ class EmptyState extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icono, size: 64, color: AppTheme.textSecondary.withValues(alpha: 0.4)),
+            Icon(icono,
+                size: 64, color: AppTheme.textSecondary.withValues(alpha: 0.4)),
             const SizedBox(height: 16),
             Text(
               mensaje,
-              style: AppTextStyles.heading3.copyWith(color: AppTheme.textSecondary),
+              style: AppTextStyles.heading3
+                  .copyWith(color: AppTheme.textSecondary),
               textAlign: TextAlign.center,
             ),
             if (submensaje != null) ...[
@@ -210,7 +212,7 @@ class EmptyState extends StatelessWidget {
   }
 }
 
-// ── Dialog de confirmacion 
+// ── Dialog de confirmacion
 class ConfirmDialog extends StatelessWidget {
   final String titulo;
   final String mensaje;
@@ -272,13 +274,35 @@ class ConfirmDialog extends StatelessWidget {
   }
 }
 
-// ── Snackbar helper 
+// ── Snackbar helper
 class AppSnackBar {
   static void success(BuildContext context, String mensaje) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(mensaje),
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.white, size: 24),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                mensaje,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
         backgroundColor: AppTheme.successColor,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 3),
+        elevation: 6,
       ),
     );
   }
@@ -286,8 +310,30 @@ class AppSnackBar {
   static void error(BuildContext context, String mensaje) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(mensaje),
+        content: Row(
+          children: [
+            const Icon(Icons.error, color: Colors.white, size: 24),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                mensaje,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
         backgroundColor: AppTheme.errorColor,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 4),
+        elevation: 6,
       ),
     );
   }
@@ -295,9 +341,30 @@ class AppSnackBar {
   static void warning(BuildContext context, String mensaje) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(mensaje),
+        content: Row(
+          children: [
+            const Icon(Icons.warning, color: Colors.white, size: 24),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                mensaje,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
         backgroundColor: AppTheme.warningColor,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        margin: const EdgeInsets.all(16),
         duration: const Duration(seconds: 4),
+        elevation: 6,
       ),
     );
   }
@@ -305,14 +372,36 @@ class AppSnackBar {
   static void info(BuildContext context, String mensaje) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(mensaje),
+        content: Row(
+          children: [
+            const Icon(Icons.info, color: Colors.white, size: 24),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                mensaje,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
         backgroundColor: AppTheme.primaryColor,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 3),
+        elevation: 6,
       ),
     );
   }
 }
 
-// ── Badge de estado / etiqueta 
+// ── Badge de estado / etiqueta
 class AppBadge extends StatelessWidget {
   final String texto;
   final Color color;
@@ -363,7 +452,7 @@ class AppBadge extends StatelessWidget {
   }
 }
 
-// ── Campo de formulario con label 
+// ── Campo de formulario con label
 class AppFormField extends StatelessWidget {
   final String label;
   final String? hint;
@@ -421,7 +510,7 @@ class AppFormField extends StatelessWidget {
   }
 }
 
-// ── Dropdown con label 
+// ── Dropdown con label
 class AppDropdown<T> extends StatelessWidget {
   final String label;
   final T? value;

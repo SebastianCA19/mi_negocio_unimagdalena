@@ -119,7 +119,8 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
               hint: 'Ej: Café Orgánico 500g',
               controller: _nombreCtrl,
               validator: (v) {
-                if (v == null || v.trim().isEmpty) return 'El nombre es obligatorio';
+                if (v == null || v.trim().isEmpty)
+                  return 'El nombre es obligatorio';
                 if (v.trim().length < 2) return 'Mínimo 2 caracteres';
                 return null;
               },
@@ -170,8 +171,8 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
                     label: 'Stock actual *',
                     hint: '0',
                     controller: _stockActualCtrl,
-                    keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true),
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
                     validator: (v) {
                       if (v == null || v.trim().isEmpty) {
                         return 'Campo obligatorio';
@@ -189,8 +190,8 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
                     label: 'Stock mínimo *',
                     hint: '0',
                     controller: _stockMinimoCtrl,
-                    keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true),
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
                     validator: (v) {
                       if (v == null || v.trim().isEmpty) {
                         return 'Campo obligatorio';
@@ -219,8 +220,8 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
               label: 'Precio unitario (COP)',
               hint: 'Ej: 24500',
               controller: _precioVentaCtrl,
-              keyboardType: const TextInputType.numberWithOptions(
-                  decimal: false),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: false),
               validator: (v) {
                 if (v == null || v.trim().isEmpty) return null;
                 if (double.tryParse(v.replaceAll(',', '.')) == null) {
@@ -240,10 +241,26 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
 
             if (_esEdicion) ...[
               const SizedBox(height: 12),
-              AppOutlineButton(
-                texto: 'Eliminar producto',
-                onPressed: _confirmarEliminar,
-                icono: Icons.delete_outline,
+              Padding(
+                padding: const EdgeInsets.all(0),
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.errorColor,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size.fromHeight(48),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    elevation: 2,
+                    shadowColor: AppTheme.errorColor.withValues(alpha: 0.3),
+                  ),
+                  icon: const Icon(Icons.delete_forever, size: 22),
+                  label: const Text(
+                    'Eliminar producto',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  onPressed: _confirmarEliminar,
+                ),
               ),
             ],
             const SizedBox(height: 20),

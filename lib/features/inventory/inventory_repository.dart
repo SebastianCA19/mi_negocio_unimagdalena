@@ -1,5 +1,5 @@
-import '../../../core/database/app_database.dart';
-import '../../../core/util/app_formatters.dart';
+import '../../core/database/app_database.dart';
+import '../../core/util/app_formatters.dart';
 import './models/producto_model.dart';
 
 class InventoryRepository {
@@ -80,7 +80,8 @@ class InventoryRepository {
     final db = await _db.database;
     final map = producto.toMap()
       ..['fecha_actualizacion'] = AppFormatters.dateTimeToDb(DateTime.now());
-    await db.update('productos', map, where: 'id = ?', whereArgs: [producto.id]);
+    await db
+        .update('productos', map, where: 'id = ?', whereArgs: [producto.id]);
   }
 
   /// Actualiza solo el stock_actual de un producto (usado por compras/ventas).
@@ -108,9 +109,7 @@ class InventoryRepository {
     final db = await _db.database;
     final maps = await db.query(
       'productos',
-      where: excluirId != null
-          ? 'nombre = ? AND id != ?'
-          : 'nombre = ?',
+      where: excluirId != null ? 'nombre = ? AND id != ?' : 'nombre = ?',
       whereArgs: excluirId != null ? [nombre, excluirId] : [nombre],
     );
     return maps.isNotEmpty;
