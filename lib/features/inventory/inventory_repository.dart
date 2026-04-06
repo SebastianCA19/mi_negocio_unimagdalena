@@ -75,6 +75,59 @@ class InventoryRepository {
     return await db.insert('productos', map);
   }
 
+  /// Retorna todas las unidades definidas en el sistema.
+  Future<List<UnidadMedida>> getUnidadesMedida() async {
+    final db = await _db.database;
+    final maps = await db.query(
+      'unidades_medida',
+      orderBy: 'nombre ASC',
+    );
+    return maps.map(UnidadMedida.fromMap).toList();
+  }
+
+  Future<UnidadMedida?> getUnidadMedidaById(int id) async {
+    final db = await _db.database;
+    final maps =
+        await db.query('unidades_medida', where: 'id = ?', whereArgs: [id]);
+    if (maps.isEmpty) return null;
+    return UnidadMedida.fromMap(maps.first);
+  }
+
+  Future<int?> getUnidadMedidaIdByText(String texto) async {
+    final db = await _db.database;
+    final maps = await db.rawQuery(
+      '''
+      SELECT id FROM unidades_medida
+      WHERE LOWER(nombre) = LOWER(?)
+         OR LOWER(abreviatura) = LOWER(?)
+      LIMIT 1
+      ''',
+      [texto, texto],
+    );
+    if (maps.isEmpty) return null;
+    return maps.first['id'] as int;
+  }
+
+  Future<int> getOrCreateUnidadMedidaByName(String texto) async {
+    final db = await _db.database;
+    final existingId = await getUnidadMedidaIdByText(texto);
+    if (existingId != null) return existingId;
+
+    final now = AppFormatters.dateTimeToDb(DateTime.now());
+    final nombre = texto.trim();
+    final abreviatura = texto.trim();
+    final unitMap = {
+      'nombre': nombre,
+      'abreviatura': abreviatura,
+      'categoria': 'Cantidad',
+      'factor_base': 1,
+      'fecha_creacion': now,
+      'fecha_actualizacion': now,
+    };
+
+    return await db.insert('unidades_medida', unitMap);
+  }
+
   /// Actualiza los datos de un producto.
   Future<void> updateProducto(Producto producto) async {
     final db = await _db.database;

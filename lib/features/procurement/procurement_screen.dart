@@ -170,7 +170,7 @@ class _ProcurementScreenState extends State<ProcurementScreen> {
       context,
       MaterialPageRoute(builder: (_) => const ProcurementFormScreen()),
     );
-    if (resultado == true && mounted) {
+    if (resultado == true && context.mounted) {
       context.read<ProcurementProvider>().loadProcurements();
     }
   }
@@ -181,7 +181,7 @@ class _ProcurementScreenState extends State<ProcurementScreen> {
       MaterialPageRoute(
           builder: (_) => ProcurementDetailScreen(procurementId: id)),
     );
-    if (resultado == true) {
+    if (resultado == true && context.mounted) {
       context.read<ProcurementProvider>().loadProcurements();
     }
   }
@@ -196,11 +196,11 @@ class _ProcurementScreenState extends State<ProcurementScreen> {
       labelCancelar: 'Cancelar',
       colorConfirmar: AppTheme.errorColor,
     );
-    if (confirmar == true && mounted) {
+    if (confirmar == true && context.mounted) {
       final error = await context.read<ProcurementProvider>().deleteProcurement(
             procurement.id!,
           );
-      if (mounted) {
+      if (context.mounted) {
         if (error != null) {
           AppSnackBar.error(context, error);
         } else {
@@ -233,182 +233,59 @@ class _FilterBar extends StatelessWidget {
     return Container(
       color: Colors.white,
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-      child: Column(
+      child: Row(
         children: [
-          // Barra de búsqueda
-          TextField(
-            controller: searchController,
-            onChanged: onSearch,
-            decoration: InputDecoration(
-              hintText: 'Buscar por proveedor...',
-              prefixIcon: const Icon(
-                Icons.search,
-                color: AppTheme.textSecondary,
-                size: 20,
-              ),
-              suffixIcon: searchController.text.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(
-                        Icons.close,
-                        size: 18,
-                        color: AppTheme.textSecondary,
-                      ),
-                      onPressed: () {
-                        searchController.clear();
-                        onSearch('');
-                      },
-                    )
-                  : null,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
+          Expanded(
+            child: TextField(
+              controller: searchController,
+              onChanged: onSearch,
+              decoration: InputDecoration(
+                hintText: 'Buscar por proveedor...',
+                prefixIcon: const Icon(
+                  Icons.search,
+                  color: AppTheme.textSecondary,
+                  size: 20,
+                ),
+                suffixIcon: searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(
+                          Icons.close,
+                          size: 18,
+                          color: AppTheme.textSecondary,
+                        ),
+                        onPressed: () {
+                          searchController.clear();
+                          onSearch('');
+                        },
+                      )
+                    : null,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
               ),
             ),
           ),
-          const SizedBox(height: 10),
-
-          // Fila de fechas
-          Row(
-            children: [
-              Expanded(
-                child: _DatePickerField(
-                  label: 'DESDE',
-                  fecha: provider.dateFrom,
-                  onTap: () async {
-                    final date = await _pickDate(
-                      context,
-                      initial: provider.dateFrom,
-                    );
-                    if (date != null) {
-                      provider.setDate(date, provider.dateTo);
-                    }
-                  },
+          const SizedBox(width: 12),
+          Material(
+            color: AppTheme.primaryColor,
+            borderRadius: BorderRadius.circular(10),
+            child: InkWell(
+              onTap: onDatesFilter,
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                width: 48,
+                height: 48,
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.filter_list,
+                  color: Colors.white,
+                  size: 22,
                 ),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _DatePickerField(
-                  label: 'HASTA',
-                  fecha: provider.dateTo,
-                  onTap: () async {
-                    final date = await _pickDate(
-                      context,
-                      initial: provider.dateTo,
-                    );
-                    if (date != null) {
-                      provider.setDate(provider.dateFrom, date);
-                    }
-                  },
-                ),
-              ),
-              const SizedBox(width: 8),
-              // Botón filtro
-              Material(
-                color: AppTheme.primaryColor,
-                borderRadius: BorderRadius.circular(10),
-                child: InkWell(
-                  onTap: onDatesFilter,
-                  borderRadius: BorderRadius.circular(10),
-                  child: Container(
-                    width: 48,
-                    height: 48,
-                    alignment: Alignment.center,
-                    child: const Icon(
-                      Icons.filter_list,
-                      color: Colors.white,
-                      size: 22,
-                    ),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         ],
-      ),
-    );
-  }
-
-  Future<DateTime?> _pickDate(BuildContext context, {DateTime? initial}) async {
-    return showDatePicker(
-      context: context,
-      initialDate: initial ?? DateTime.now(),
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
-      locale: const Locale('es', 'CO'),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: AppTheme.primaryColor,
-            ),
-          ),
-          child: child!,
-        );
-      },
-    );
-  }
-}
-
-class _DatePickerField extends StatelessWidget {
-  final String label;
-  final DateTime? fecha;
-  final VoidCallback onTap;
-
-  const _DatePickerField({
-    required this.label,
-    required this.fecha,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 48,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border.all(color: AppTheme.dividerColor),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    label,
-                    style: const TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.primaryColor,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  Text(
-                    fecha != null
-                        ? AppFormatters.fechaDisplay.format(fecha!)
-                        : 'dd/mm/aaaa',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: fecha != null
-                          ? const Color(0xFF1F2937)
-                          : AppTheme.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(
-              Icons.calendar_today_outlined,
-              size: 16,
-              color: AppTheme.textSecondary,
-            ),
-          ],
-        ),
       ),
     );
   }

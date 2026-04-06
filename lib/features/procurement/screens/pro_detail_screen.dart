@@ -175,7 +175,7 @@ class _ProcurementDetailScreenState extends State<ProcurementDetailScreen> {
                                             fontWeight: FontWeight.w600)),
                                     const SizedBox(height: 2),
                                     Text(
-                                      'Cant: ${_fmt(item.quantity.toDouble())}  ·  Precio: ${AppFormatters.formatMoneda(item.unitPrice)}',
+                                      'Cant: ${_fmt(item.quantity.toDouble())} ${item.unidadMedida.isNotEmpty ? item.unidadMedida : ''} · Precio: ${AppFormatters.formatMoneda(item.unitPrice)}',
                                       style: AppTextStyles.bodySecondary,
                                     ),
                                   ],

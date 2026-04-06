@@ -10,8 +10,9 @@ import '../models/producto_model.dart';
 
 class ProductoFormScreen extends StatefulWidget {
   final Producto? producto; // null = crear nuevo
+  final String? initialName;
 
-  const ProductoFormScreen({super.key, this.producto});
+  const ProductoFormScreen({super.key, this.producto, this.initialName});
 
   @override
   State<ProductoFormScreen> createState() => _ProductoFormScreenState();
@@ -44,6 +45,8 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
       if (p.precioVenta != null) {
         _precioVentaCtrl.text = p.precioVenta!.toStringAsFixed(0);
       }
+    } else if (widget.initialName != null) {
+      _nombreCtrl.text = widget.initialName!;
     }
   }
 
@@ -63,11 +66,16 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
     setState(() => _isLoading = true);
 
     final now = AppFormatters.dateTimeToDb(DateTime.now());
+    final unidadMedidaId = await context
+        .read<InventoryProvider>()
+        .resolveUnidadMedidaId(_unidadCtrl.text.trim());
+
     final producto = Producto(
       id: widget.producto?.id,
       nombre: _nombreCtrl.text.trim(),
       categoria: _categoria,
       unidadMedida: _unidadCtrl.text.trim(),
+      unidadMedidaId: unidadMedidaId,
       stockActual: double.parse(_stockActualCtrl.text.replaceAll(',', '.')),
       stockMinimo: double.parse(_stockMinimoCtrl.text.replaceAll(',', '.')),
       precioVenta: _precioVentaCtrl.text.isNotEmpty

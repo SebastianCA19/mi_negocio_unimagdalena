@@ -3,6 +3,7 @@ class Producto {
   final String nombre;
   final String categoria; // 'Producto terminado' | 'Materia prima'
   final String unidadMedida;
+  final int? unidadMedidaId;
   final double stockActual;
   final double stockMinimo;
   final double? precioVenta;
@@ -17,6 +18,7 @@ class Producto {
     required this.nombre,
     required this.categoria,
     required this.unidadMedida,
+    this.unidadMedidaId,
     required this.stockActual,
     required this.stockMinimo,
     this.precioVenta,
@@ -40,6 +42,7 @@ class Producto {
       precioVenta: map['precio_venta'] != null
           ? (map['precio_venta'] as num).toDouble()
           : null,
+      unidadMedidaId: map['unidad_medida_id'] as int?,
       fechaCreacion: map['fecha_creacion'] as String,
       fechaActualizacion: map['fecha_actualizacion'] as String,
     );
@@ -51,6 +54,7 @@ class Producto {
       'nombre': nombre,
       'categoria': categoria,
       'unidad_medida': unidadMedida,
+      if (unidadMedidaId != null) 'unidad_medida_id': unidadMedidaId,
       'stock_actual': stockActual,
       'stock_minimo': stockMinimo,
       'precio_venta': precioVenta,
@@ -64,6 +68,7 @@ class Producto {
     String? nombre,
     String? categoria,
     String? unidadMedida,
+    int? unidadMedidaId,
     double? stockActual,
     double? stockMinimo,
     double? precioVenta,
@@ -76,6 +81,7 @@ class Producto {
       nombre: nombre ?? this.nombre,
       categoria: categoria ?? this.categoria,
       unidadMedida: unidadMedida ?? this.unidadMedida,
+      unidadMedidaId: unidadMedidaId ?? this.unidadMedidaId,
       stockActual: stockActual ?? this.stockActual,
       stockMinimo: stockMinimo ?? this.stockMinimo,
       precioVenta: precioVenta ?? this.precioVenta,
@@ -83,6 +89,52 @@ class Producto {
       fechaActualizacion: fechaActualizacion ?? this.fechaActualizacion,
       insumos: insumos ?? this.insumos,
     );
+  }
+}
+
+class UnidadMedida {
+  final int? id;
+  final String nombre;
+  final String abreviatura;
+  final String categoria;
+  final double factorBase;
+  final String fechaCreacion;
+  final String fechaActualizacion;
+
+  UnidadMedida({
+    this.id,
+    required this.nombre,
+    required this.abreviatura,
+    required this.categoria,
+    required this.factorBase,
+    required this.fechaCreacion,
+    required this.fechaActualizacion,
+  });
+
+  String get displayName => abreviatura.isNotEmpty ? abreviatura : nombre;
+
+  factory UnidadMedida.fromMap(Map<String, dynamic> map) {
+    return UnidadMedida(
+      id: map['id'] as int?,
+      nombre: map['nombre'] as String,
+      abreviatura: map['abreviatura'] as String,
+      categoria: map['categoria'] as String,
+      factorBase: (map['factor_base'] as num).toDouble(),
+      fechaCreacion: map['fecha_creacion'] as String,
+      fechaActualizacion: map['fecha_actualizacion'] as String,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      if (id != null) 'id': id,
+      'nombre': nombre,
+      'abreviatura': abreviatura,
+      'categoria': categoria,
+      'factor_base': factorBase,
+      'fecha_creacion': fechaCreacion,
+      'fecha_actualizacion': fechaActualizacion,
+    };
   }
 }
 

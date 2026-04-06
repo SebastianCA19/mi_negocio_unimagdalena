@@ -78,7 +78,10 @@ class Procurement {
 class ProcurementItem {
   final int? id;
   final int procurementId;
+  final int? productId;
   final String productName;
+  final int? unidadMedidaId;
+  final String unidadMedida;
   final double quantity;
   final double unitPrice;
   final double subtotal;
@@ -86,7 +89,10 @@ class ProcurementItem {
   ProcurementItem({
     this.id,
     required this.procurementId,
+    this.productId,
     required this.productName,
+    this.unidadMedidaId,
+    required this.unidadMedida,
     required this.quantity,
     required this.unitPrice,
     required this.subtotal,
@@ -96,7 +102,10 @@ class ProcurementItem {
     return ProcurementItem(
       id: map['id'] as int?,
       procurementId: map['compra_id'] as int,
+      productId: map['producto_id'] as int?,
       productName: map['nombre_producto'] as String,
+      unidadMedidaId: map['unidad_medida_id'] as int?,
+      unidadMedida: map['unidad_medida'] as String? ?? '',
       quantity: map['cantidad'] as double,
       unitPrice: (map['precio_unitario'] as num).toDouble(),
       subtotal: (map['subtotal'] as num).toDouble(),
@@ -108,6 +117,9 @@ class ProcurementItem {
       if (id != null) 'id': id,
       'compra_id': procurementId,
       'nombre_producto': productName,
+      if (productId != null) 'producto_id': productId,
+      if (unidadMedidaId != null) 'unidad_medida_id': unidadMedidaId,
+      'unidad_medida': unidadMedida,
       'cantidad': quantity,
       'precio_unitario': unitPrice,
       'subtotal': subtotal,

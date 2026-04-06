@@ -8,6 +8,7 @@ class InventoryProvider extends ChangeNotifier {
   final InventoryRepository _repo = InventoryRepository();
 
   List<Producto> _productos = [];
+  List<UnidadMedida> _unidades = [];
   InventoryViewFilter _filtro = InventoryViewFilter.todos;
   String _busqueda = '';
   bool _isLoading = false;
@@ -20,20 +21,19 @@ class InventoryProvider extends ChangeNotifier {
   InventoryViewFilter get filtro => _filtro;
   String get busqueda => _busqueda;
   int get stockBajoCount => _stockBajoCount;
+  List<UnidadMedida> get unidades => _unidades;
 
   List<Producto> get productos {
     var lista = _productos;
     if (_busqueda.isNotEmpty) {
       lista = lista
-          .where((p) =>
-              p.nombre.toLowerCase().contains(_busqueda.toLowerCase()))
+          .where(
+              (p) => p.nombre.toLowerCase().contains(_busqueda.toLowerCase()))
           .toList();
     }
     switch (_filtro) {
       case InventoryViewFilter.terminados:
-        return lista
-            .where((p) => p.categoria == 'Producto terminado')
-            .toList();
+        return lista.where((p) => p.categoria == 'Producto terminado').toList();
       case InventoryViewFilter.materiaPrima:
         return lista.where((p) => p.categoria == 'Materia prima').toList();
       case InventoryViewFilter.todos:
@@ -53,6 +53,7 @@ class InventoryProvider extends ChangeNotifier {
 
     try {
       _productos = await _repo.getProductos();
+      _unidades = await _repo.getUnidadesMedida();
       _stockBajoCount = await _repo.contarStockBajo();
     } catch (e) {
       _error = 'Error al cargar inventario: $e';
@@ -113,6 +114,10 @@ class InventoryProvider extends ChangeNotifier {
     } catch (e) {
       return 'Error al eliminar: $e';
     }
+  }
+
+  Future<int> resolveUnidadMedidaId(String texto) async {
+    return await _repo.getOrCreateUnidadMedidaByName(texto);
   }
 
   // ─── Ajuste manual ───────────────────────────

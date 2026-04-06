@@ -7,6 +7,9 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/util/app_constants.dart';
 import '../../../core/util/app_formatters.dart';
 import '../../../core/widgets/app_widgets.dart';
+import '../../inventory/inventory_provider.dart';
+import '../../inventory/models/producto_model.dart';
+import '../../inventory/screens/producto_form_screen.dart';
 import '../procurement_provider.dart';
 import '../models/pro_model.dart';
 
@@ -33,6 +36,17 @@ class _ProcurementFormScreenState extends State<ProcurementFormScreen> {
   bool _isLoading = false;
 
   double get _total => _items.fold(0, (sum, item) => sum + item.subtotal);
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final provider = context.read<InventoryProvider>();
+      if (provider.unidades.isEmpty) {
+        provider.cargarProductos();
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -162,16 +176,26 @@ class _ProcurementFormScreenState extends State<ProcurementFormScreen> {
       registrationDate: now,
     );
 
-    final items = _items
-        .map((item) => ProcurementItem(
-              procurementId: 0, // Se asigna en el repo
-              productName: item.nameCtrl.text.trim(),
-              quantity:
-                  double.parse(item.quantityCtrl.text.replaceAll(',', '.')),
-              unitPrice: double.parse(item.priceCtrl.text.replaceAll(',', '.')),
-              subtotal: item.subtotal,
-            ))
-        .toList();
+    final items = _items.map((item) {
+      final quantity =
+          double.parse(item.quantityCtrl.text.replaceAll(',', '.'));
+      final enteredValue =
+          double.parse(item.priceCtrl.text.replaceAll(',', '.'));
+      final unitPrice = item.useTotalPrice
+          ? (quantity > 0 ? enteredValue / quantity : 0.0)
+          : enteredValue;
+
+      return ProcurementItem(
+        procurementId: 0, // Se asigna en el repo
+        productId: item.productId,
+        productName: item.nameCtrl.text.trim(),
+        unidadMedidaId: item.unitId,
+        unidadMedida: item.unitName,
+        quantity: quantity,
+        unitPrice: unitPrice,
+        subtotal: item.subtotal,
+      );
+    }).toList();
 
     final error =
         await context.read<ProcurementProvider>().saveProcurement(pro, items);
@@ -183,6 +207,143 @@ class _ProcurementFormScreenState extends State<ProcurementFormScreen> {
       } else {
         AppSnackBar.success(context, AppMessages.msjCompraGuardada);
         Navigator.pop(context, true);
+      }
+    }
+  }
+
+  Future<void> _showProductSelector(int itemIndex) async {
+    final provider = context.read<InventoryProvider>();
+    final previousBusqueda = provider.busqueda;
+    provider.setBusqueda('');
+    await provider.cargarProductos();
+
+    final item = _items[itemIndex];
+    String searchText = '';
+
+    final result = await showModalBottomSheet<Object?>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(builder: (context, setState) {
+          final filteredProducts = provider.productos
+              .where((p) =>
+                  searchText.isEmpty ||
+                  p.nombre.toLowerCase().contains(searchText.toLowerCase()))
+              .toList();
+
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom,
+              left: 20,
+              right: 20,
+              top: 20,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppTheme.dividerColor,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text('Seleccionar producto',
+                    style: AppTextStyles.heading3),
+                const SizedBox(height: 16),
+                TextField(
+                  decoration: const InputDecoration(
+                    hintText: 'Buscar producto...',
+                    prefixIcon: Icon(Icons.search),
+                  ),
+                  onChanged: (value) => setState(() {
+                    searchText = value;
+                  }),
+                ),
+                const SizedBox(height: 16),
+                if (provider.isLoading)
+                  const Center(child: CircularProgressIndicator())
+                else if (filteredProducts.isEmpty)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('No se encontraron productos.'),
+                      const SizedBox(height: 12),
+                      AppButton(
+                        texto: searchText.isEmpty
+                            ? 'Crear nuevo producto'
+                            : 'Crear "$searchText"',
+                        onPressed: () {
+                          Navigator.pop(context, 'create');
+                        },
+                      ),
+                    ],
+                  )
+                else
+                  Flexible(
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: filteredProducts.length,
+                      itemBuilder: (context, index) {
+                        final product = filteredProducts[index];
+                        return ListTile(
+                          title: Text(product.nombre),
+                          subtitle: Text(
+                              '${product.categoria} · ${product.unidadMedida}'),
+                          onTap: () => Navigator.pop(context, product),
+                        );
+                      },
+                    ),
+                  ),
+                const SizedBox(height: 16),
+              ],
+            ),
+          );
+        });
+      },
+    );
+
+    if (mounted) {
+      provider.setBusqueda(previousBusqueda);
+    }
+
+    if (result is Producto) {
+      setState(() {
+        item.nameCtrl.text = result.nombre;
+        item.productId = result.id;
+        item.unitId = result.unidadMedidaId;
+        item.unitName = result.unidadMedida;
+      });
+    } else if (result == 'create') {
+      final created = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ProductoFormScreen(
+            initialName: searchText.isNotEmpty ? searchText : null,
+          ),
+        ),
+      );
+      if (created == true) {
+        await provider.cargarProductos();
+        final match = provider.productos
+            .where((p) => p.nombre.toLowerCase() == searchText.toLowerCase())
+            .toList();
+        if (match.isNotEmpty) {
+          setState(() {
+            item.nameCtrl.text = match.first.nombre;
+            item.productId = match.first.id;
+            item.unitId = match.first.unidadMedidaId;
+            item.unitName = match.first.unidadMedida;
+          });
+        }
       }
     }
   }
@@ -385,6 +546,7 @@ class _ProcurementFormScreenState extends State<ProcurementFormScreen> {
                         index: i,
                         onEliminar: () => _deleteItem(i),
                         onChanged: () => setState(() {}),
+                        onSelectProduct: () => _showProductSelector(i),
                       ),
                     ),
 
@@ -508,12 +670,14 @@ class _ItemRow extends StatelessWidget {
   final int index;
   final VoidCallback onEliminar;
   final VoidCallback onChanged;
+  final VoidCallback onSelectProduct;
 
   const _ItemRow({
     required this.item,
     required this.index,
     required this.onEliminar,
     required this.onChanged,
+    required this.onSelectProduct,
   });
 
   @override
@@ -535,8 +699,11 @@ class _ItemRow extends StatelessWidget {
               Expanded(
                 child: TextFormField(
                   controller: item.nameCtrl,
+                  readOnly: true,
+                  onTap: onSelectProduct,
                   decoration: const InputDecoration(
-                    hintText: 'Nombre del producto',
+                    hintText: 'Seleccionar producto',
+                    suffixIcon: Icon(Icons.search, size: 18),
                     isDense: true,
                     border: InputBorder.none,
                     contentPadding: EdgeInsets.all(10),
@@ -559,7 +726,7 @@ class _ItemRow extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          // Cantidad + precio + subtotal
+          // Cantidad + precio + unidad
           Row(
             children: [
               Expanded(
@@ -574,7 +741,7 @@ class _ItemRow extends StatelessWidget {
               Expanded(
                 flex: 2,
                 child: _MiniField(
-                  label: 'Precio: \$',
+                  label: item.priceLabel,
                   controller: item.priceCtrl,
                   isNumber: true,
                   onChanged: onChanged,
@@ -582,23 +749,72 @@ class _ItemRow extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Expanded(
-                flex: 2,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    const Text('Subtotal',
-                        style: TextStyle(
-                            fontSize: 10, color: AppTheme.textSecondary)),
-                    Text(
-                      AppFormatters.formatMoneda(item.subtotal),
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: AppTheme.primaryColor,
-                      ),
-                    ),
-                  ],
+                child: DropdownButtonFormField<int?>(
+                  value: item.unitId,
+                  decoration: const InputDecoration(
+                    labelText: 'Unidad',
+                    isDense: true,
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                    border: OutlineInputBorder(),
+                  ),
+                  items: context
+                      .read<InventoryProvider>()
+                      .unidades
+                      .map((unidad) => DropdownMenuItem<int?>(
+                            value: unidad.id,
+                            child: Text(unidad.displayName),
+                          ))
+                      .toList(),
+                  onChanged: (value) {
+                    item.unitId = value;
+                    final unidad =
+                        context.read<InventoryProvider>().unidades.firstWhere(
+                              (u) => u.id == value,
+                              orElse: () => UnidadMedida(
+                                nombre: '',
+                                abreviatura: '',
+                                categoria: '',
+                                factorBase: 1,
+                                fechaCreacion: '',
+                                fechaActualizacion: '',
+                              ),
+                            );
+                    item.unitName = unidad.displayName;
+                    onChanged();
+                  },
                 ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              TextButton(
+                onPressed: () {
+                  item.useTotalPrice = !item.useTotalPrice;
+                  onChanged();
+                },
+                child: Text(item.useTotalPrice
+                    ? 'Usar precio unitario'
+                    : 'Usar precio total'),
+              ),
+              const Spacer(),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  const Text('Subtotal',
+                      style: TextStyle(
+                          fontSize: 10, color: AppTheme.textSecondary)),
+                  Text(
+                    AppFormatters.formatMoneda(item.subtotal),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.primaryColor,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -784,6 +1000,11 @@ class _ImageFileBtn extends StatelessWidget {
 }
 
 class _ItemEditable {
+  int? productId;
+  int? unitId;
+  String unitName = '';
+  bool useTotalPrice = false;
+
   final TextEditingController nameCtrl = TextEditingController();
   final TextEditingController quantityCtrl = TextEditingController();
   final TextEditingController priceCtrl = TextEditingController();
@@ -791,7 +1012,9 @@ class _ItemEditable {
   double get quantity =>
       double.tryParse(quantityCtrl.text.replaceAll(',', '.')) ?? 0;
   double get price => double.tryParse(priceCtrl.text.replaceAll(',', '.')) ?? 0;
-  double get subtotal => quantity * price;
+  double get total => double.tryParse(priceCtrl.text.replaceAll(',', '.')) ?? 0;
+  double get subtotal => useTotalPrice ? total : quantity * price;
+  String get priceLabel => useTotalPrice ? 'Precio total' : 'Precio unitario';
 
   void dispose() {
     nameCtrl.dispose();
