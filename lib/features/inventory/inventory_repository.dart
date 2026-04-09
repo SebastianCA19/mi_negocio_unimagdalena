@@ -1,87 +1,16 @@
 import '../../core/database/app_database.dart';
-import '../../core/util/app_formatters.dart';
 import './models/producto_model.dart';
 
 class InventoryRepository {
   final AppDatabase _db = AppDatabase.instance;
 
   // ──────────────────────────────────────────────
-  //  PRODUCTOS
+  //  UNIDADES DE MEDIDA
   // ──────────────────────────────────────────────
 
-  /// Retorna todos los productos, opcionalmente filtrados por categoría o búsqueda.
-  Future<List<Producto>> getProductos({
-    String? categoria,
-    String? busqueda,
-    bool soloStockBajo = false,
-  }) async {
-    final db = await _db.database;
-
-    final conditions = <String>[];
-    final args = <dynamic>[];
-
-    if (categoria != null && categoria.isNotEmpty) {
-      conditions.add('categoria = ?');
-      args.add(categoria);
-    }
-    if (busqueda != null && busqueda.isNotEmpty) {
-      conditions.add('nombre LIKE ?');
-      args.add('%$busqueda%');
-    }
-    if (soloStockBajo) {
-      conditions.add('stock_actual <= stock_minimo');
-    }
-
-    final where = conditions.isNotEmpty ? conditions.join(' AND ') : null;
-
-    final maps = await db.query(
-      'productos',
-      where: where,
-      whereArgs: args.isNotEmpty ? args : null,
-      orderBy: 'nombre ASC',
-    );
-
-    return maps.map(Producto.fromMap).toList();
-  }
-
-  /// Retorna un producto por ID con sus insumos cargados.
-  Future<Producto?> getProductoById(int id) async {
-    final db = await _db.database;
-    final maps = await db.query('productos', where: 'id = ?', whereArgs: [id]);
-    if (maps.isEmpty) return null;
-
-    final producto = Producto.fromMap(maps.first);
-    final insumos = await getInsumos(id);
-    return producto.copyWith(insumos: insumos);
-  }
-
-  /// Cantidad de productos con stock bajo.
-  Future<int> contarStockBajo() async {
-    final db = await _db.database;
-    final result = await db.rawQuery(
-      'SELECT COUNT(*) as cnt FROM productos WHERE stock_actual <= stock_minimo',
-    );
-    return (result.first['cnt'] as int?) ?? 0;
-  }
-
-  /// Inserta un producto. Lanza excepción si el nombre ya existe.
-  Future<int> insertProducto(Producto producto) async {
-    final db = await _db.database;
-    final now = AppFormatters.dateTimeToDb(DateTime.now());
-    final map = producto.toMap()
-      ..['fecha_creacion'] = now
-      ..['fecha_actualizacion'] = now;
-    map.remove('id');
-    return await db.insert('productos', map);
-  }
-
-  /// Retorna todas las unidades definidas en el sistema.
   Future<List<UnidadMedida>> getUnidadesMedida() async {
     final db = await _db.database;
-    final maps = await db.query(
-      'unidades_medida',
-      orderBy: 'nombre ASC',
-    );
+    final maps = await db.query('unidades_medida', orderBy: 'nombre ASC');
     return maps.map(UnidadMedida.fromMap).toList();
   }
 
@@ -93,71 +22,137 @@ class InventoryRepository {
     return UnidadMedida.fromMap(maps.first);
   }
 
-  Future<int?> getUnidadMedidaIdByText(String texto) async {
+  /// Busca unidades cuyo nombre o abreviatura contengan [query].
+  Future<List<UnidadMedida>> buscarUnidades(String query) async {
     final db = await _db.database;
     final maps = await db.rawQuery(
       '''
-      SELECT id FROM unidades_medida
-      WHERE LOWER(nombre) = LOWER(?)
-         OR LOWER(abreviatura) = LOWER(?)
-      LIMIT 1
+      SELECT * FROM unidades_medida
+      WHERE LOWER(nombre)      LIKE LOWER(?)
+         OR LOWER(abreviatura) LIKE LOWER(?)
+      ORDER BY nombre ASC
       ''',
-      [texto, texto],
+      ['%$query%', '%$query%'],
+    );
+    return maps.map(UnidadMedida.fromMap).toList();
+  }
+
+  /// Inserta una nueva unidad de medida y retorna su id.
+  Future<int> insertUnidadMedida(UnidadMedida unidad) async {
+    final db = await _db.database;
+    return db.insert('unidades_medida', unidad.toMap());
+  }
+
+  // ──────────────────────────────────────────────
+  //  PRODUCTOS
+  // ──────────────────────────────────────────────
+
+  /// Retorna todos los productos con su unidad de medida (JOIN).
+  Future<List<Producto>> getProductos({
+    bool? soloMateriaPrima,
+    String? busqueda,
+    bool soloStockBajo = false,
+  }) async {
+    final db = await _db.database;
+
+    final conditions = <String>[];
+    final args = <dynamic>[];
+
+    if (soloMateriaPrima != null) {
+      conditions.add('p.es_materia_prima = ?');
+      args.add(soloMateriaPrima ? 1 : 0);
+    }
+    if (busqueda != null && busqueda.isNotEmpty) {
+      conditions.add('p.nombre LIKE ?');
+      args.add('%$busqueda%');
+    }
+    if (soloStockBajo) {
+      conditions.add('p.stock_actual <= p.stock_minimo');
+    }
+
+    final where =
+        conditions.isNotEmpty ? 'WHERE ${conditions.join(' AND ')}' : '';
+
+    final maps = await db.rawQuery(
+      '''
+      SELECT
+        p.*,
+        um.nombre      AS um_nombre,
+        um.abreviatura AS um_abreviatura,
+        um.factor_base AS um_factor_base
+      FROM productos p
+      JOIN unidades_medida um ON um.id = p.unidad_medida_id
+      $where
+      ORDER BY p.nombre ASC
+      ''',
+      args.isNotEmpty ? args : null,
+    );
+
+    return maps.map(Producto.fromMap).toList();
+  }
+
+  /// Retorna un producto con su unidad y sus insumos.
+  Future<Producto?> getProductoById(int id) async {
+    final db = await _db.database;
+    final maps = await db.rawQuery(
+      '''
+      SELECT
+        p.*,
+        um.nombre      AS um_nombre,
+        um.abreviatura AS um_abreviatura,
+        um.factor_base AS um_factor_base
+      FROM productos p
+      JOIN unidades_medida um ON um.id = p.unidad_medida_id
+      WHERE p.id = ?
+      ''',
+      [id],
     );
     if (maps.isEmpty) return null;
-    return maps.first['id'] as int;
+
+    final producto = Producto.fromMap(maps.first);
+    final insumos = await getInsumos(id);
+    return producto.copyWith(insumos: insumos);
   }
 
-  Future<int> getOrCreateUnidadMedidaByName(String texto) async {
+  Future<int> contarStockBajo() async {
     final db = await _db.database;
-    final existingId = await getUnidadMedidaIdByText(texto);
-    if (existingId != null) return existingId;
-
-    final now = AppFormatters.dateTimeToDb(DateTime.now());
-    final nombre = texto.trim();
-    final abreviatura = texto.trim();
-    final unitMap = {
-      'nombre': nombre,
-      'abreviatura': abreviatura,
-      'categoria': 'Cantidad',
-      'factor_base': 1,
-      'fecha_creacion': now,
-      'fecha_actualizacion': now,
-    };
-
-    return await db.insert('unidades_medida', unitMap);
+    final result = await db.rawQuery(
+      'SELECT COUNT(*) AS cnt FROM productos WHERE stock_actual <= stock_minimo',
+    );
+    return (result.first['cnt'] as int?) ?? 0;
   }
 
-  /// Actualiza los datos de un producto.
+  Future<int> insertProducto(Producto producto) async {
+    final db = await _db.database;
+    final map = producto.toMap()..remove('id');
+    return db.insert('productos', map);
+  }
+
   Future<void> updateProducto(Producto producto) async {
     final db = await _db.database;
-    final map = producto.toMap()
-      ..['fecha_actualizacion'] = AppFormatters.dateTimeToDb(DateTime.now());
-    await db
-        .update('productos', map, where: 'id = ?', whereArgs: [producto.id]);
+    await db.update(
+      'productos',
+      producto.toMap(),
+      where: 'id = ?',
+      whereArgs: [producto.id],
+    );
   }
 
-  /// Actualiza solo el stock_actual de un producto (usado por compras/ventas).
   Future<void> updateStock(int productoId, double nuevoStock) async {
     final db = await _db.database;
     await db.update(
       'productos',
-      {
-        'stock_actual': nuevoStock,
-        'fecha_actualizacion': AppFormatters.dateTimeToDb(DateTime.now()),
-      },
+      {'stock_actual': nuevoStock},
       where: 'id = ?',
       whereArgs: [productoId],
     );
   }
 
-  /// Elimina un producto (CASCADE borra sus insumos y ajustes).
   Future<void> deleteProducto(int id) async {
     final db = await _db.database;
     await db.delete('productos', where: 'id = ?', whereArgs: [id]);
   }
 
-  /// Verifica si ya existe un producto con ese nombre (ignorando ID propio).
   Future<bool> existeNombre(String nombre, {int? excluirId}) async {
     final db = await _db.database;
     final maps = await db.query(
@@ -172,17 +167,29 @@ class InventoryRepository {
   //  INSUMOS
   // ──────────────────────────────────────────────
 
+  /// Retorna los insumos de un producto con datos del insumo y su unidad.
   Future<List<InsumoProducto>> getInsumos(int productoId) async {
     final db = await _db.database;
-    final maps = await db.query(
-      'insumos_producto',
-      where: 'producto_id = ?',
-      whereArgs: [productoId],
+    final maps = await db.rawQuery(
+      '''
+      SELECT
+        ip.*,
+        p.nombre           AS insumo_nombre,
+        p.unidad_medida_id AS insumo_unidad_medida_id,
+        um.nombre          AS insumo_um_nombre,
+        um.abreviatura     AS insumo_um_abreviatura,
+        um.factor_base     AS insumo_um_factor_base
+      FROM insumos_producto ip
+      JOIN productos       p  ON p.id  = ip.insumo_id
+      JOIN unidades_medida um ON um.id = p.unidad_medida_id
+      WHERE ip.producto_id = ?
+      ''',
+      [productoId],
     );
     return maps.map(InsumoProducto.fromMap).toList();
   }
 
-  /// Reemplaza todos los insumos de un producto (borrar + insertar).
+  /// Reemplaza todos los insumos de un producto.
   Future<void> saveInsumos(int productoId, List<InsumoProducto> insumos) async {
     final db = await _db.database;
     await db.transaction((txn) async {
@@ -192,16 +199,12 @@ class InventoryRepository {
         whereArgs: [productoId],
       );
       for (final insumo in insumos) {
-        final map = insumo.toMap()..['producto_id'] = productoId;
-        map.remove('id');
+        final map = insumo.toMap()
+          ..remove('id')
+          ..['producto_id'] = productoId;
         await txn.insert('insumos_producto', map);
       }
     });
-  }
-
-  Future<void> deleteInsumo(int id) async {
-    final db = await _db.database;
-    await db.delete('insumos_producto', where: 'id = ?', whereArgs: [id]);
   }
 
   // ──────────────────────────────────────────────
@@ -219,17 +222,15 @@ class InventoryRepository {
     return maps.map(AjusteInventario.fromMap).toList();
   }
 
-  /// Registra un ajuste manual y actualiza el stock del producto.
-  Future<void> registrarAjuste(AjusteInventario ajuste) async {
+  /// Registra un ajuste y actualiza el stock del producto en una transaccion.
+  Future<void> registrarAjuste(
+      AjusteInventario ajuste, double nuevoStock) async {
     final db = await _db.database;
     await db.transaction((txn) async {
       await txn.insert('ajustes_inventario', ajuste.toMap()..remove('id'));
       await txn.update(
         'productos',
-        {
-          'stock_actual': ajuste.stockNuevo,
-          'fecha_actualizacion': AppFormatters.dateTimeToDb(DateTime.now()),
-        },
+        {'stock_actual': nuevoStock},
         where: 'id = ?',
         whereArgs: [ajuste.productoId],
       );

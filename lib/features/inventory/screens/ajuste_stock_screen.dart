@@ -29,19 +29,15 @@ class _AjusteStockScreenState extends State<AjusteStockScreen> {
   }
 
   double get _stockResultante {
-    final cantidad = double.tryParse(
-            _cantidadCtrl.text.replaceAll(',', '.')) ??
-        0;
-    if (_tipo == AppConstants.ajusteAumento) {
-      return widget.producto.stockActual + cantidad;
-    } else {
-      return widget.producto.stockActual - cantidad;
-    }
+    final cantidad =
+        double.tryParse(_cantidadCtrl.text.replaceAll(',', '.')) ?? 0;
+    return _tipo == AppConstants.ajusteAumento
+        ? widget.producto.stockActual + cantidad
+        : widget.producto.stockActual - cantidad;
   }
 
   Future<void> _guardar() async {
     if (!_formKey.currentState!.validate()) return;
-
     setState(() => _isLoading = true);
 
     final error = await context.read<InventoryProvider>().registrarAjuste(
@@ -56,10 +52,9 @@ class _AjusteStockScreenState extends State<AjusteStockScreen> {
       if (error != null) {
         AppSnackBar.error(context, error);
       } else {
-        final fmt = _stockResultante;
         AppSnackBar.success(
           context,
-          'Stock actualizado: ${_fmtNum(fmt)} ${widget.producto.unidadMedida}.',
+          'Stock actualizado: ${_fmtNum(_stockResultante)} ${widget.producto.unidadNombre}.',
         );
         Navigator.pop(context, true);
       }
@@ -96,7 +91,7 @@ class _AjusteStockScreenState extends State<AjusteStockScreen> {
                               style: AppTextStyles.heading3),
                           const SizedBox(height: 4),
                           Text(
-                            'Stock actual: ${_fmtNum(widget.producto.stockActual)} ${widget.producto.unidadMedida}',
+                            'Stock actual: ${_fmtNum(widget.producto.stockActual)} ${widget.producto.unidadNombre}',
                             style: AppTextStyles.bodySecondary,
                           ),
                         ],
@@ -131,8 +126,8 @@ class _AjusteStockScreenState extends State<AjusteStockScreen> {
                     icono: Icons.remove_circle_outline,
                     activo: _tipo == AppConstants.ajusteDisminucion,
                     color: AppTheme.errorColor,
-                    onTap: () => setState(
-                        () => _tipo = AppConstants.ajusteDisminucion),
+                    onTap: () =>
+                        setState(() => _tipo = AppConstants.ajusteDisminucion),
                   ),
                 ),
               ],
@@ -150,8 +145,7 @@ class _AjusteStockScreenState extends State<AjusteStockScreen> {
                 if (v == null || v.trim().isEmpty) {
                   return 'Ingresa la cantidad';
                 }
-                final num =
-                    double.tryParse(v.replaceAll(',', '.'));
+                final num = double.tryParse(v.replaceAll(',', '.'));
                 if (num == null || num <= 0) {
                   return 'Debe ser mayor a 0';
                 }
@@ -177,7 +171,7 @@ class _AjusteStockScreenState extends State<AjusteStockScreen> {
             ),
             const SizedBox(height: 24),
 
-            // ── Resumen resultante ─────────────────────
+            // ── Stock resultante ──────────────────────
             AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               padding: const EdgeInsets.all(16),
@@ -211,7 +205,7 @@ class _AjusteStockScreenState extends State<AjusteStockScreen> {
                           ),
                         ),
                         Text(
-                          '${_fmtNum(stockResultante)} ${widget.producto.unidadMedida}',
+                          '${_fmtNum(stockResultante)} ${widget.producto.unidadNombre}',
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w700,
@@ -231,8 +225,7 @@ class _AjusteStockScreenState extends State<AjusteStockScreen> {
               const SizedBox(height: 8),
               const Text(
                 'Advertencia: el stock resultante es negativo.',
-                style: TextStyle(
-                    color: AppTheme.errorColor, fontSize: 12),
+                style: TextStyle(color: AppTheme.errorColor, fontSize: 12),
               ),
             ],
 
@@ -285,8 +278,8 @@ class _TipoBoton extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icono, color: activo ? color : AppTheme.textSecondary,
-                size: 20),
+            Icon(icono,
+                color: activo ? color : AppTheme.textSecondary, size: 20),
             const SizedBox(width: 6),
             Text(
               label,

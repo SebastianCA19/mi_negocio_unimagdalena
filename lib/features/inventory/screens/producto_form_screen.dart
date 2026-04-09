@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/util/app_constants.dart';
-import '../../../core/util/app_formatters.dart';
 import '../../../core/widgets/app_widgets.dart';
 import '../inventory_provider.dart';
 import '../models/producto_model.dart';
+import '../widgets/unidad_medida_selector.dart';
 
 class ProductoFormScreen extends StatefulWidget {
-  final Producto? producto; // null = crear nuevo
+  final Producto? producto;
   final String? initialName;
 
   const ProductoFormScreen({super.key, this.producto, this.initialName});
@@ -21,13 +19,15 @@ class ProductoFormScreen extends StatefulWidget {
 class _ProductoFormScreenState extends State<ProductoFormScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nombreCtrl = TextEditingController();
-  final _unidadCtrl = TextEditingController();
   final _stockActualCtrl = TextEditingController();
   final _stockMinimoCtrl = TextEditingController();
   final _precioVentaCtrl = TextEditingController();
 
-  String _categoria = AppConstants.categoriaProductos.first;
+  bool _esMateriaPrima = false;
+  UnidadMedida? _unidadSeleccionada;
+  bool _unidadError = false;
   bool _isLoading = false;
+
   bool get _esEdicion => widget.producto != null;
 
   @override
@@ -36,12 +36,10 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
     if (widget.producto != null) {
       final p = widget.producto!;
       _nombreCtrl.text = p.nombre;
-      _categoria = p.categoria;
-      _unidadCtrl.text = p.unidadMedida;
-      _stockActualCtrl.text = p.stockActual.toStringAsFixed(
-          p.stockActual == p.stockActual.truncateToDouble() ? 0 : 1);
-      _stockMinimoCtrl.text = p.stockMinimo.toStringAsFixed(
-          p.stockMinimo == p.stockMinimo.truncateToDouble() ? 0 : 1);
+      _esMateriaPrima = p.esMateriaPrima;
+      _unidadSeleccionada = p.unidadMedida;
+      _stockActualCtrl.text = _fmtNum(p.stockActual);
+      _stockMinimoCtrl.text = _fmtNum(p.stockMinimo);
       if (p.precioVenta != null) {
         _precioVentaCtrl.text = p.precioVenta!.toStringAsFixed(0);
       }
@@ -53,36 +51,38 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
   @override
   void dispose() {
     _nombreCtrl.dispose();
-    _unidadCtrl.dispose();
     _stockActualCtrl.dispose();
     _stockMinimoCtrl.dispose();
     _precioVentaCtrl.dispose();
     super.dispose();
   }
 
+  String _fmtNum(double v) =>
+      v == v.truncateToDouble() ? v.toInt().toString() : v.toStringAsFixed(1);
+
   Future<void> _guardar() async {
+    // Validar unidad manualmente (no está en un TextFormField)
+    if (_unidadSeleccionada == null) {
+      setState(() => _unidadError = true);
+      _formKey.currentState?.validate();
+      return;
+    }
+    setState(() => _unidadError = false);
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
-    final now = AppFormatters.dateTimeToDb(DateTime.now());
-    final unidadMedidaId = await context
-        .read<InventoryProvider>()
-        .resolveUnidadMedidaId(_unidadCtrl.text.trim());
-
     final producto = Producto(
       id: widget.producto?.id,
       nombre: _nombreCtrl.text.trim(),
-      categoria: _categoria,
-      unidadMedida: _unidadCtrl.text.trim(),
-      unidadMedidaId: unidadMedidaId,
+      esMateriaPrima: _esMateriaPrima,
+      unidadMedidaId: _unidadSeleccionada!.id!,
+      unidadMedida: _unidadSeleccionada,
       stockActual: double.parse(_stockActualCtrl.text.replaceAll(',', '.')),
       stockMinimo: double.parse(_stockMinimoCtrl.text.replaceAll(',', '.')),
       precioVenta: _precioVentaCtrl.text.isNotEmpty
           ? double.tryParse(_precioVentaCtrl.text.replaceAll(',', '.'))
           : null,
-      fechaCreacion: widget.producto?.fechaCreacion ?? now,
-      fechaActualizacion: now,
     );
 
     final provider = context.read<InventoryProvider>();
@@ -127,44 +127,50 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
               hint: 'Ej: Café Orgánico 500g',
               controller: _nombreCtrl,
               validator: (v) {
-                if (v == null || v.trim().isEmpty)
+                if (v == null || v.trim().isEmpty) {
                   return 'El nombre es obligatorio';
+                }
                 if (v.trim().length < 2) return 'Mínimo 2 caracteres';
                 return null;
               },
             ),
             const SizedBox(height: 16),
 
-            // Categoría
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            // Tipo: Materia prima / Producto terminado
+            const Text('Tipo *', style: AppTextStyles.label),
+            const SizedBox(height: 8),
+            Row(
               children: [
-                const Text('Categoría *', style: AppTextStyles.label),
-                const SizedBox(height: 6),
-                DropdownButtonFormField<String>(
-                  value: _categoria,
-                  decoration: const InputDecoration(hintText: 'Seleccione'),
-                  items: AppConstants.categoriaProductos
-                      .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                      .toList(),
-                  onChanged: (v) => setState(() => _categoria = v!),
-                  validator: (v) =>
-                      v == null ? 'Seleccione una categoría' : null,
+                Expanded(
+                  child: _TipoBoton(
+                    label: 'Producto terminado',
+                    icono: Icons.inventory_2_outlined,
+                    activo: !_esMateriaPrima,
+                    onTap: () => setState(() => _esMateriaPrima = false),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _TipoBoton(
+                    label: 'Materia prima',
+                    icono: Icons.grass_outlined,
+                    activo: _esMateriaPrima,
+                    onTap: () => setState(() => _esMateriaPrima = true),
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 16),
 
-            AppFormField(
-              label: 'Unidad de medida *',
-              hint: 'Ej: Kg, Litro, Unidad, Bolsa',
-              controller: _unidadCtrl,
-              validator: (v) {
-                if (v == null || v.trim().isEmpty) {
-                  return 'La unidad de medida es obligatoria';
-                }
-                return null;
-              },
+            // Unidad de medida con selector
+            UnidadMedidaSelector(
+              value: _unidadSeleccionada,
+              errorText:
+                  _unidadError ? 'Selecciona una unidad de medida' : null,
+              onSelected: (u) => setState(() {
+                _unidadSeleccionada = u;
+                _unidadError = false;
+              }),
             ),
             const SizedBox(height: 24),
 
@@ -249,26 +255,21 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
 
             if (_esEdicion) ...[
               const SizedBox(height: 12),
-              Padding(
-                padding: const EdgeInsets.all(0),
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.errorColor,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size.fromHeight(48),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    elevation: 2,
-                    shadowColor: AppTheme.errorColor.withValues(alpha: 0.3),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.errorColor,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size.fromHeight(48),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
                   ),
-                  icon: const Icon(Icons.delete_forever, size: 22),
-                  label: const Text(
-                    'Eliminar producto',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                  ),
-                  onPressed: _confirmarEliminar,
                 ),
+                icon: const Icon(Icons.delete_forever, size: 22),
+                label: const Text(
+                  'Eliminar producto',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                onPressed: _confirmarEliminar,
               ),
             ],
             const SizedBox(height: 20),
@@ -301,6 +302,60 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
         }
       }
     }
+  }
+}
+
+// ── Botón de tipo ─────────────────────────────────────────────────────────────
+
+class _TipoBoton extends StatelessWidget {
+  final String label;
+  final IconData icono;
+  final bool activo;
+  final VoidCallback onTap;
+
+  const _TipoBoton({
+    required this.label,
+    required this.icono,
+    required this.activo,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+        decoration: BoxDecoration(
+          color: activo ? AppTheme.primaryLighter : Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: activo ? AppTheme.primaryColor : AppTheme.dividerColor,
+            width: activo ? 2 : 0.8,
+          ),
+        ),
+        child: Column(
+          children: [
+            Icon(
+              icono,
+              size: 22,
+              color: activo ? AppTheme.primaryColor : AppTheme.textSecondary,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: activo ? FontWeight.w600 : FontWeight.w400,
+                color: activo ? AppTheme.primaryColor : AppTheme.textSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

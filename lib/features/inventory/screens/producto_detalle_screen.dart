@@ -12,7 +12,6 @@ import 'insumos_screen.dart';
 
 class ProductoDetalleScreen extends StatefulWidget {
   final int productoId;
-
   const ProductoDetalleScreen({super.key, required this.productoId});
 
   @override
@@ -43,9 +42,7 @@ class _ProductoDetalleScreenState extends State<ProductoDetalleScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     if (_producto == null) {
       return Scaffold(
@@ -81,7 +78,6 @@ class _ProductoDetalleScreenState extends State<ProductoDetalleScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Categoría badge
                     AppBadge.categoria(p.categoria),
                     const SizedBox(height: 16),
 
@@ -109,7 +105,7 @@ class _ProductoDetalleScreenState extends State<ProductoDetalleScreen> {
                                   ),
                                 ),
                                 const SizedBox(width: 6),
-                                Text(p.unidadMedida,
+                                Text(p.unidadNombre,
                                     style: AppTextStyles.bodySecondary),
                               ],
                             ),
@@ -143,11 +139,9 @@ class _ProductoDetalleScreenState extends State<ProductoDetalleScreen> {
                                 color: AppTheme.warningColor, size: 16),
                             const SizedBox(width: 8),
                             Text(
-                              'Stock bajo. Mínimo: ${_fmt(p.stockMinimo)} ${p.unidadMedida}',
+                              'Stock bajo. Mínimo: ${_fmt(p.stockMinimo)} ${p.unidadNombre}',
                               style: const TextStyle(
-                                fontSize: 13,
-                                color: AppTheme.warningColor,
-                              ),
+                                  fontSize: 13, color: AppTheme.warningColor),
                             ),
                           ],
                         ),
@@ -156,17 +150,16 @@ class _ProductoDetalleScreenState extends State<ProductoDetalleScreen> {
 
                     const Divider(height: 28),
 
-                    // Datos adicionales
+                    _InfoRow(
+                        label: 'Unidad de medida',
+                        valor: p.unidadMedida?.nombre ?? p.unidadNombre),
                     _InfoRow(
                         label: 'Stock mínimo',
-                        valor: '${_fmt(p.stockMinimo)} ${p.unidadMedida}'),
+                        valor: '${_fmt(p.stockMinimo)} ${p.unidadNombre}'),
                     if (p.precioVenta != null)
                       _InfoRow(
                           label: 'Precio de venta',
                           valor: AppFormatters.formatMoneda(p.precioVenta!)),
-                    _InfoRow(
-                        label: 'Última actualización',
-                        valor: AppFormatters.formatFecha(p.fechaActualizacion)),
                   ],
                 ),
               ),
@@ -184,8 +177,8 @@ class _ProductoDetalleScreenState extends State<ProductoDetalleScreen> {
                     onTap: _irAAjuste,
                   ),
                 ),
-                const SizedBox(width: 10),
-                if (p.esProductoTerminado)
+                if (p.esProductoTerminado) ...[
+                  const SizedBox(width: 10),
                   Expanded(
                     child: _ActionCard(
                       icono: Icons.receipt_long_outlined,
@@ -194,7 +187,7 @@ class _ProductoDetalleScreenState extends State<ProductoDetalleScreen> {
                       onTap: _irAInsumos,
                     ),
                   ),
-                if (!p.esProductoTerminado) const Expanded(child: SizedBox()),
+                ],
               ],
             ),
             const SizedBox(height: 16),
@@ -208,8 +201,7 @@ class _ProductoDetalleScreenState extends State<ProductoDetalleScreen> {
                 Center(
                   child: TextButton(
                     onPressed: null,
-                    child: Text(
-                        'Ver todos (${_ajustes.length} registros)'),
+                    child: Text('Ver todos (${_ajustes.length} registros)'),
                   ),
                 ),
             ],
@@ -229,15 +221,16 @@ class _ProductoDetalleScreenState extends State<ProductoDetalleScreen> {
                               child: Row(
                                 children: [
                                   const Icon(Icons.fiber_manual_record,
-                                      size: 8,
-                                      color: AppTheme.textSecondary),
+                                      size: 8, color: AppTheme.textSecondary),
                                   const SizedBox(width: 10),
                                   Expanded(
-                                    child: Text(ins.nombreInsumo,
+                                    child: Text(
+                                        ins.insumo?.nombre ??
+                                            'Insumo #${ins.insumoId}',
                                         style: AppTextStyles.body),
                                   ),
                                   Text(
-                                    '${_fmt(ins.cantidadPorUnidad)} ${ins.unidadMedida}',
+                                    '${_fmt(ins.cantidadPorUnidad)} ${ins.insumo?.unidadNombre ?? ''}',
                                     style: AppTextStyles.bodySecondary,
                                   ),
                                 ],
@@ -263,8 +256,7 @@ class _ProductoDetalleScreenState extends State<ProductoDetalleScreen> {
     final resultado = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (_) => ProductoFormScreen(producto: _producto),
-      ),
+          builder: (_) => ProductoFormScreen(producto: _producto)),
     );
     if (resultado == true && mounted) {
       await _cargar();
@@ -276,8 +268,7 @@ class _ProductoDetalleScreenState extends State<ProductoDetalleScreen> {
     final resultado = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (_) => AjusteStockScreen(producto: _producto!),
-      ),
+          builder: (_) => AjusteStockScreen(producto: _producto!)),
     );
     if (resultado == true && mounted) _cargar();
   }
@@ -285,15 +276,13 @@ class _ProductoDetalleScreenState extends State<ProductoDetalleScreen> {
   Future<void> _irAInsumos() async {
     final resultado = await Navigator.push<bool>(
       context,
-      MaterialPageRoute(
-        builder: (_) => InsumosScreen(producto: _producto!),
-      ),
+      MaterialPageRoute(builder: (_) => InsumosScreen(producto: _producto!)),
     );
     if (resultado == true && mounted) _cargar();
   }
 }
 
-// ── Widgets auxiliares ────────────────────────────────────
+// ── Widgets auxiliares ────────────────────────────────────────────────────────
 
 class _InfoRow extends StatelessWidget {
   final String label;
@@ -321,11 +310,13 @@ class _ActionCard extends StatelessWidget {
   final String label;
   final Color color;
   final VoidCallback onTap;
-  const _ActionCard(
-      {required this.icono,
-      required this.label,
-      required this.color,
-      required this.onTap});
+
+  const _ActionCard({
+    required this.icono,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -376,17 +367,13 @@ class _AjusteItem extends StatelessWidget {
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                color: esAumento
-                    ? AppTheme.successLight
-                    : AppTheme.errorLight,
+                color: esAumento ? AppTheme.successLight : AppTheme.errorLight,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
                 esAumento ? Icons.add : Icons.remove,
                 size: 18,
-                color: esAumento
-                    ? AppTheme.successColor
-                    : AppTheme.errorColor,
+                color: esAumento ? AppTheme.successColor : AppTheme.errorColor,
               ),
             ),
             const SizedBox(width: 12),
@@ -403,28 +390,20 @@ class _AjusteItem extends StatelessWidget {
                 ],
               ),
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  '${esAumento ? '+' : '-'}${ajuste.cantidad.toStringAsFixed(ajuste.cantidad == ajuste.cantidad.truncateToDouble() ? 0 : 1)}',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: esAumento
-                        ? AppTheme.successColor
-                        : AppTheme.errorColor,
-                  ),
-                ),
-                Text(
-                  '→ ${ajuste.stockNuevo.toStringAsFixed(ajuste.stockNuevo == ajuste.stockNuevo.truncateToDouble() ? 0 : 1)}',
-                  style: AppTextStyles.label,
-                ),
-              ],
+            Text(
+              '${esAumento ? '+' : '-'}${_fmtCant(ajuste.cantidad)}',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: esAumento ? AppTheme.successColor : AppTheme.errorColor,
+              ),
             ),
           ],
         ),
       ),
     );
   }
+
+  String _fmtCant(double v) =>
+      v == v.truncateToDouble() ? v.toInt().toString() : v.toStringAsFixed(1);
 }

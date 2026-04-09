@@ -15,7 +15,6 @@ class InventoryProvider extends ChangeNotifier {
   String? _error;
   int _stockBajoCount = 0;
 
-  // Getters
   bool get isLoading => _isLoading;
   String? get error => _error;
   InventoryViewFilter get filtro => _filtro;
@@ -33,9 +32,9 @@ class InventoryProvider extends ChangeNotifier {
     }
     switch (_filtro) {
       case InventoryViewFilter.terminados:
-        return lista.where((p) => p.categoria == 'Producto terminado').toList();
+        return lista.where((p) => !p.esMateriaPrima).toList();
       case InventoryViewFilter.materiaPrima:
-        return lista.where((p) => p.categoria == 'Materia prima').toList();
+        return lista.where((p) => p.esMateriaPrima).toList();
       case InventoryViewFilter.todos:
         return lista;
     }
@@ -63,9 +62,7 @@ class InventoryProvider extends ChangeNotifier {
     }
   }
 
-  Future<Producto?> getProductoDetalle(int id) async {
-    return _repo.getProductoById(id);
-  }
+  Future<Producto?> getProductoDetalle(int id) => _repo.getProductoById(id);
 
   // ─── Filtros ─────────────────────────────────
 
@@ -77,6 +74,33 @@ class InventoryProvider extends ChangeNotifier {
   void setBusqueda(String texto) {
     _busqueda = texto;
     notifyListeners();
+  }
+
+  // ─── Búsqueda de unidades (para seleccionadores) ─────────────────────────
+
+  Future<List<UnidadMedida>> buscarUnidades(String query) =>
+      _repo.buscarUnidades(query);
+
+  Future<UnidadMedida> crearUnidad({
+    required String nombre,
+    required String abreviatura,
+    required double factorBase,
+  }) async {
+    final unidad = UnidadMedida(
+      nombre: nombre,
+      abreviatura: abreviatura,
+      factorBase: factorBase,
+    );
+    final id = await _repo.insertUnidadMedida(unidad);
+    final nueva = UnidadMedida(
+      id: id,
+      nombre: nombre,
+      abreviatura: abreviatura,
+      factorBase: factorBase,
+    );
+    _unidades = await _repo.getUnidadesMedida();
+    notifyListeners();
+    return nueva;
   }
 
   // ─── CRUD Producto ───────────────────────────
@@ -116,10 +140,6 @@ class InventoryProvider extends ChangeNotifier {
     }
   }
 
-  Future<int> resolveUnidadMedidaId(String texto) async {
-    return await _repo.getOrCreateUnidadMedidaByName(texto);
-  }
-
   // ─── Ajuste manual ───────────────────────────
 
   Future<String?> registrarAjuste({
@@ -129,21 +149,18 @@ class InventoryProvider extends ChangeNotifier {
     required String motivo,
   }) async {
     try {
-      final stockAnterior = producto.stockActual;
-      final stockNuevo = tipo == 'Aumento'
-          ? stockAnterior + cantidad
-          : stockAnterior - cantidad;
+      final nuevoStock = tipo == 'Aumento'
+          ? producto.stockActual + cantidad
+          : producto.stockActual - cantidad;
 
       final ajuste = AjusteInventario(
         productoId: producto.id!,
         tipo: tipo,
         cantidad: cantidad,
         motivo: motivo,
-        stockAnterior: stockAnterior,
-        stockNuevo: stockNuevo,
         fechaAjuste: DateTime.now().toIso8601String(),
       );
-      await _repo.registrarAjuste(ajuste);
+      await _repo.registrarAjuste(ajuste, nuevoStock);
       await cargarProductos();
       return null;
     } catch (e) {
@@ -153,9 +170,8 @@ class InventoryProvider extends ChangeNotifier {
 
   // ─── Insumos ─────────────────────────────────
 
-  Future<List<InsumoProducto>> getInsumos(int productoId) async {
-    return _repo.getInsumos(productoId);
-  }
+  Future<List<InsumoProducto>> getInsumos(int productoId) =>
+      _repo.getInsumos(productoId);
 
   Future<String?> guardarInsumos(
       int productoId, List<InsumoProducto> insumos) async {
@@ -167,7 +183,6 @@ class InventoryProvider extends ChangeNotifier {
     }
   }
 
-  Future<List<AjusteInventario>> getAjustes(int productoId) async {
-    return _repo.getAjustes(productoId);
-  }
+  Future<List<AjusteInventario>> getAjustes(int productoId) =>
+      _repo.getAjustes(productoId);
 }

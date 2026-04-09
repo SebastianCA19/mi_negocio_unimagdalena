@@ -15,7 +15,6 @@ class ProductoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final esTerminado = producto.esProductoTerminado;
     final stockBajo = producto.stockBajo;
 
     return Card(
@@ -57,21 +56,22 @@ class ProductoCard extends StatelessWidget {
               ),
               const SizedBox(height: 6),
 
-              // Categoría + unidad
+              // Badge tipo + unidad
               Row(
                 children: [
                   _CategoriaBadge(
-                    label: esTerminado ? 'TERMINADOS' : 'MATERIA PRIMA',
-                    color: esTerminado
-                        ? AppTheme.primaryLighter
-                        : AppTheme.warningLight,
-                    colorTexto: esTerminado
-                        ? AppTheme.primaryColor
-                        : AppTheme.warningColor,
+                    label:
+                        producto.esMateriaPrima ? 'MATERIA PRIMA' : 'TERMINADO',
+                    color: producto.esMateriaPrima
+                        ? AppTheme.warningLight
+                        : AppTheme.primaryLighter,
+                    colorTexto: producto.esMateriaPrima
+                        ? AppTheme.warningColor
+                        : AppTheme.primaryColor,
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    producto.unidadMedida,
+                    producto.unidadNombre,
                     style: const TextStyle(
                       fontSize: 13,
                       color: AppTheme.textSecondary,
@@ -89,13 +89,12 @@ class ProductoCard extends StatelessWidget {
                         ? Icons.error_rounded
                         : Icons.check_circle_rounded,
                     size: 16,
-                    color: stockBajo
-                        ? AppTheme.errorColor
-                        : AppTheme.successColor,
+                    color:
+                        stockBajo ? AppTheme.errorColor : AppTheme.successColor,
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    'Stock: ${_formatStock(producto.stockActual)} ${producto.unidadMedida.toLowerCase()}',
+                    'Stock: ${_fmtStock(producto.stockActual)} ${producto.unidadNombre.toLowerCase()}',
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
@@ -116,11 +115,10 @@ class ProductoCard extends StatelessWidget {
     );
   }
 
-  String _formatStock(double stock) {
-    if (stock == stock.truncateToDouble()) {
-      return stock.toInt().toString();
-    }
-    return stock.toStringAsFixed(1);
+  String _fmtStock(double stock) {
+    return stock == stock.truncateToDouble()
+        ? stock.toInt().toString()
+        : stock.toStringAsFixed(1);
   }
 }
 
