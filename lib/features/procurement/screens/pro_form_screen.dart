@@ -297,7 +297,7 @@ class _ProcurementFormScreenState extends State<ProcurementFormScreen> {
                         return ListTile(
                           title: Text(product.nombre),
                           subtitle: Text(
-                              '${product.categoria} · ${product.unidadMedida}'),
+                              '${product.categoria} · ${product.unidadNombre}'),
                           onTap: () => Navigator.pop(context, product),
                         );
                       },
@@ -320,7 +320,7 @@ class _ProcurementFormScreenState extends State<ProcurementFormScreen> {
         item.nameCtrl.text = result.nombre;
         item.productId = result.id;
         item.unitId = result.unidadMedidaId;
-        item.unitName = result.unidadMedida;
+        item.unitName = result.unidadNombre;
       });
     } else if (result == 'create') {
       final created = await Navigator.push<bool>(
@@ -341,7 +341,7 @@ class _ProcurementFormScreenState extends State<ProcurementFormScreen> {
             item.nameCtrl.text = match.first.nombre;
             item.productId = match.first.id;
             item.unitId = match.first.unidadMedidaId;
-            item.unitName = match.first.unidadMedida;
+            item.unitName = match.first.unidadNombre;
           });
         }
       }
@@ -774,10 +774,7 @@ class _ItemRow extends StatelessWidget {
                               orElse: () => UnidadMedida(
                                 nombre: '',
                                 abreviatura: '',
-                                categoria: '',
                                 factorBase: 1,
-                                fechaCreacion: '',
-                                fechaActualizacion: '',
                               ),
                             );
                     item.unitName = unidad.displayName;
