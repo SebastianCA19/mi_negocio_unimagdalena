@@ -6,7 +6,7 @@ import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/auth_provider.dart';
 import 'features/inventory/inventory_provider.dart';
-import 'features/procurement/procurement_provider.dart';
+import 'features/procurement/compra_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,7 +17,7 @@ Future<void> main() async {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => InventoryProvider()),
-        ChangeNotifierProvider(create: (_) => ProcurementProvider()),
+        ChangeNotifierProvider(create: (_) => CompraProvider()),
       ],
       child: const MyApp(),
     ),

@@ -4,36 +4,32 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/util/app_formatters.dart';
 import '../../../core/widgets/app_widgets.dart';
-import '../procurement_provider.dart';
-import '../models/pro_model.dart';
+import '../compra_provider.dart';
+import '../models/compra_model.dart';
 
-class ProcurementDetailScreen extends StatefulWidget {
-  final int procurementId;
-  const ProcurementDetailScreen({super.key, required this.procurementId});
+class CompraDetalleScreen extends StatefulWidget {
+  final int compraId;
+  const CompraDetalleScreen({super.key, required this.compraId});
 
   @override
-  State<ProcurementDetailScreen> createState() =>
-      _ProcurementDetailScreenState();
+  State<CompraDetalleScreen> createState() => _CompraDetalleScreenState();
 }
 
-class _ProcurementDetailScreenState extends State<ProcurementDetailScreen> {
-  Procurement? _procurement;
+class _CompraDetalleScreenState extends State<CompraDetalleScreen> {
+  Compra? _compra;
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadProcurement();
+    _cargar();
   }
 
-  Future<void> _loadProcurement() async {
+  Future<void> _cargar() async {
     setState(() => _isLoading = true);
-
-    _procurement = await context
-        .read<ProcurementProvider>()
-        .getProcurementDetail(widget.procurementId);
-
-    setState(() => _isLoading = false);
+    _compra =
+        await context.read<CompraProvider>().getCompraDetalle(widget.compraId);
+    if (mounted) setState(() => _isLoading = false);
   }
 
   @override
@@ -41,20 +37,22 @@ class _ProcurementDetailScreenState extends State<ProcurementDetailScreen> {
     if (_isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-    if (_procurement == null) {
+    if (_compra == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Detalle')),
         body: const Center(child: Text('Compra no encontrada')),
       );
     }
 
-    final p = _procurement!;
+    final c = _compra!;
 
     return Scaffold(
       backgroundColor: AppTheme.surfaceColor,
       appBar: AppBar(
-        title: Text(p.providerName ?? 'Proveedor',
-            overflow: TextOverflow.ellipsis),
+        title: Text(
+          c.proveedor?.nombre ?? 'Compra #${c.id}',
+          overflow: TextOverflow.ellipsis,
+        ),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 12),
@@ -64,15 +62,12 @@ class _ProcurementDetailScreenState extends State<ProcurementDetailScreen> {
               elevation: 2,
               child: InkWell(
                 customBorder: const CircleBorder(),
-                onTap: () => _confirmDelete(context),
+                onTap: () => _confirmarEliminar(context),
                 child: const SizedBox(
                   width: 40,
                   height: 40,
-                  child: Icon(
-                    Icons.delete_forever,
-                    color: AppTheme.errorLight,
-                    size: 24,
-                  ),
+                  child:
+                      Icon(Icons.delete_forever, color: Colors.white, size: 22),
                 ),
               ),
             ),
@@ -98,16 +93,19 @@ class _ProcurementDetailScreenState extends State<ProcurementDetailScreen> {
                           children: [
                             const Text('Proveedor', style: AppTextStyles.label),
                             const SizedBox(height: 4),
-                            Text(p.providerName ?? 'Proveedor desconocido',
-                                style: AppTextStyles.heading2),
-                            if (p.providerPhone != null) ...[
+                            Text(
+                              c.proveedor?.nombre ?? '—',
+                              style: AppTextStyles.heading2,
+                            ),
+                            if (c.proveedor?.telefono != null &&
+                                c.proveedor!.telefono!.isNotEmpty) ...[
                               const SizedBox(height: 4),
                               Row(
                                 children: [
                                   const Icon(Icons.phone_outlined,
                                       size: 14, color: AppTheme.textSecondary),
                                   const SizedBox(width: 4),
-                                  Text(p.providerPhone ?? '',
+                                  Text(c.proveedor!.telefono!,
                                       style: AppTextStyles.bodySecondary),
                                 ],
                               ),
@@ -121,7 +119,7 @@ class _ProcurementDetailScreenState extends State<ProcurementDetailScreen> {
                           const Text('Total', style: AppTextStyles.label),
                           const SizedBox(height: 4),
                           Text(
-                            AppFormatters.formatMoneda(p.total),
+                            AppFormatters.formatMoneda(c.total),
                             style: const TextStyle(
                               fontSize: 22,
                               fontWeight: FontWeight.w800,
@@ -137,10 +135,10 @@ class _ProcurementDetailScreenState extends State<ProcurementDetailScreen> {
                     children: [
                       _InfoChip(
                         icon: Icons.calendar_today_outlined,
-                        text: AppFormatters.formatFecha(p.purchaseDate),
+                        text: AppFormatters.formatFecha(c.fechaCompra),
                       ),
                       const SizedBox(width: 12),
-                      _PillMethod(method: p.paymentMethod),
+                      _MetodoBadge(metodo: c.metodoPago),
                     ],
                   ),
                 ],
@@ -149,14 +147,14 @@ class _ProcurementDetailScreenState extends State<ProcurementDetailScreen> {
           ),
           const SizedBox(height: 12),
 
-          // ── Productos ─────────────────────────────
-          if (p.items.isNotEmpty) ...[
+          // ── Productos comprados ───────────────────
+          if (c.items.isNotEmpty) ...[
             const Text('Productos comprados', style: AppTextStyles.heading3),
             const SizedBox(height: 8),
             Card(
               child: Column(
                 children: [
-                  ...p.items.asMap().entries.map((entry) {
+                  ...c.items.asMap().entries.map((entry) {
                     final i = entry.key;
                     final item = entry.value;
                     return Column(
@@ -170,12 +168,15 @@ class _ProcurementDetailScreenState extends State<ProcurementDetailScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(item.productName,
-                                        style: AppTextStyles.body.copyWith(
-                                            fontWeight: FontWeight.w600)),
+                                    Text(
+                                      item.productoNombre ?? '—',
+                                      style: AppTextStyles.body.copyWith(
+                                          fontWeight: FontWeight.w600),
+                                    ),
                                     const SizedBox(height: 2),
                                     Text(
-                                      'Cant: ${_fmt(item.quantity.toDouble())} ${item.unidadMedida.isNotEmpty ? item.unidadMedida : ''} · Precio: ${AppFormatters.formatMoneda(item.unitPrice)}',
+                                      'Cant: ${_fmt(item.cantidad)} ${item.unidadDisplay}'
+                                      ' · ${AppFormatters.formatMoneda(item.precioUnitario)}/u',
                                       style: AppTextStyles.bodySecondary,
                                     ),
                                   ],
@@ -192,12 +193,12 @@ class _ProcurementDetailScreenState extends State<ProcurementDetailScreen> {
                             ],
                           ),
                         ),
-                        if (i < p.items.length - 1)
+                        if (i < c.items.length - 1)
                           const Divider(height: 1, indent: 16),
                       ],
                     );
                   }),
-                  // Total
+                  // Fila total
                   Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 16, vertical: 12),
@@ -208,15 +209,17 @@ class _ProcurementDetailScreenState extends State<ProcurementDetailScreen> {
                     ),
                     child: Row(
                       children: [
-                        const Text('Total',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              color: AppTheme.primaryColor,
-                            )),
+                        const Text(
+                          'Total',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.primaryColor,
+                          ),
+                        ),
                         const Spacer(),
                         Text(
-                          AppFormatters.formatMoneda(p.total),
+                          AppFormatters.formatMoneda(c.total),
                           style: const TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.w800,
@@ -232,18 +235,18 @@ class _ProcurementDetailScreenState extends State<ProcurementDetailScreen> {
             const SizedBox(height: 12),
           ],
 
-          // ── Adjunto ───────────────────────────────
-          if (p.hasImage) ...[
+          // ── Factura adjunta ───────────────────────
+          if (c.hasImage) ...[
             const Text('Factura adjunta', style: AppTextStyles.heading3),
             const SizedBox(height: 8),
             Card(
               child: InkWell(
-                onTap: () => _imgCompleteView(context, p.imagePath!),
+                onTap: () => _verImagenCompleta(context, c.imagenPath!),
                 borderRadius: BorderRadius.circular(12),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(12),
                   child: Image.file(
-                    File(p.imagePath!),
+                    File(c.imagenPath!),
                     width: double.infinity,
                     height: 200,
                     fit: BoxFit.cover,
@@ -265,7 +268,7 @@ class _ProcurementDetailScreenState extends State<ProcurementDetailScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             const Text(
               'Toca la imagen para verla en pantalla completa',
               style: AppTextStyles.label,
@@ -282,16 +285,16 @@ class _ProcurementDetailScreenState extends State<ProcurementDetailScreen> {
   String _fmt(double v) =>
       v == v.truncateToDouble() ? v.toInt().toString() : v.toStringAsFixed(1);
 
-  void _imgCompleteView(BuildContext context, String path) {
+  void _verImagenCompleta(BuildContext context, String path) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => _ImgScreenVisor(imagePath: path),
+        builder: (_) => _VisorImagen(imagePath: path),
       ),
     );
   }
 
-  Future<void> _confirmDelete(BuildContext context) async {
+  Future<void> _confirmarEliminar(BuildContext context) async {
     final confirmar = await ConfirmDialog.show(
       context,
       titulo: 'Eliminar compra',
@@ -302,9 +305,8 @@ class _ProcurementDetailScreenState extends State<ProcurementDetailScreen> {
       colorConfirmar: AppTheme.errorColor,
     );
     if (confirmar == true && mounted) {
-      final error = await context
-          .read<ProcurementProvider>()
-          .deleteProcurement(widget.procurementId);
+      final error =
+          await context.read<CompraProvider>().eliminarCompra(widget.compraId);
       if (mounted) {
         if (error != null) {
           AppSnackBar.error(context, error);
@@ -317,9 +319,11 @@ class _ProcurementDetailScreenState extends State<ProcurementDetailScreen> {
   }
 }
 
-class _ImgScreenVisor extends StatelessWidget {
+// ── Visor imagen pantalla completa ────────────────────────────────────────────
+
+class _VisorImagen extends StatelessWidget {
   final String imagePath;
-  const _ImgScreenVisor({required this.imagePath});
+  const _VisorImagen({required this.imagePath});
 
   @override
   Widget build(BuildContext context) {
@@ -339,7 +343,8 @@ class _ImgScreenVisor extends StatelessWidget {
   }
 }
 
-// Aux
+// ── Widgets auxiliares ────────────────────────────────────────────────────────
+
 class _InfoChip extends StatelessWidget {
   final IconData icon;
   final String text;
@@ -357,13 +362,13 @@ class _InfoChip extends StatelessWidget {
   }
 }
 
-class _PillMethod extends StatelessWidget {
-  final String method;
-  const _PillMethod({required this.method});
+class _MetodoBadge extends StatelessWidget {
+  final String metodo;
+  const _MetodoBadge({required this.metodo});
 
   @override
   Widget build(BuildContext context) {
-    final isEfectivo = method.toLowerCase() == 'efectivo';
+    final isEfectivo = metodo.toLowerCase() == 'efectivo';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
@@ -371,7 +376,7 @@ class _PillMethod extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
-        method.toUpperCase(),
+        metodo.toUpperCase(),
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w700,

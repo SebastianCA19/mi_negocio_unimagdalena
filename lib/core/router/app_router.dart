@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/auth_provider.dart';
 import '../../features/auth/auth_screen.dart';
-import '../../features/procurement/procurement_screen.dart';
+import '../../features/procurement/compras_screen.dart';
 import '../../features/sales/sales_screen.dart';
 import '../../features/inventory/inventory_screen.dart';
 import '../../features/accounting/accounting_screen.dart';
@@ -52,11 +52,11 @@ class AppRouter {
           routes: [
             GoRoute(
               path: home,
-              builder: (context, state) => const ProcurementScreen(),
+              builder: (context, state) => const ComprasScreen(),
             ),
             GoRoute(
               path: compras,
-              builder: (context, state) => const ProcurementScreen(),
+              builder: (context, state) => const ComprasScreen(),
             ),
             GoRoute(
               path: ventas,
