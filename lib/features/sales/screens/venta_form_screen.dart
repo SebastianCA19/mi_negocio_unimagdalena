@@ -9,37 +9,37 @@ import '../../../core/widgets/app_widgets.dart';
 import '../../inventory/inventory_provider.dart';
 import '../../inventory/models/producto_model.dart';
 import '../../inventory/screens/producto_form_screen.dart';
-import '../../inventory/widgets/unidad_medida_selector.dart';
-import '../compra_provider.dart';
-import '../models/compra_model.dart';
-import '../widgets/proveedor_selector.dart';
+import '../venta_provider.dart';
+import '../models/venta_model.dart';
 
-class CompraFormScreen extends StatefulWidget {
-  const CompraFormScreen({super.key});
+class VentaFormScreen extends StatefulWidget {
+  const VentaFormScreen({super.key});
 
   @override
-  State<CompraFormScreen> createState() => _CompraFormScreenState();
+  State<VentaFormScreen> createState() => _VentaFormScreenState();
 }
 
-class _CompraFormScreenState extends State<CompraFormScreen> {
-  // Proveedor
-  Proveedor? _proveedorSeleccionado;
-  bool _proveedorError = false;
+class _VentaFormScreenState extends State<VentaFormScreen> {
+  // Cliente / notas
+  final _notasCtrl = TextEditingController();
 
   // Detalle
-  DateTime _fechaCompra = DateTime.now();
+  DateTime _fechaVenta = DateTime.now();
   String _metodoPago = AppConstants.metodosPago.first;
 
   // Items
   final List<_ItemEditable> _items = [];
 
-  // Adjunto
-  File? _imagenFile;
+  // Adjunto (solo si pago no es efectivo — RF-VNT02)
+  File? _comprobanteFile;
   bool _loadingImg = false;
 
   bool _isLoading = false;
 
   double get _total => _items.fold(0, (sum, item) => sum + item.subtotal);
+
+  bool get _requiereComprobante =>
+      _metodoPago.toLowerCase() != 'efectivo';
 
   @override
   void initState() {
@@ -52,6 +52,7 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
 
   @override
   void dispose() {
+    _notasCtrl.dispose();
     for (final item in _items) {
       item.dispose();
     }
@@ -66,10 +67,12 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
       final picker = ImagePicker();
       final picked = await picker.pickImage(source: source, imageQuality: 80);
       if (picked != null) {
-        setState(() => _imagenFile = File(picked.path));
+        setState(() => _comprobanteFile = File(picked.path));
       }
     } catch (_) {
-      if (mounted) AppSnackBar.error(context, 'No se pudo cargar la imagen.');
+      if (mounted) {
+        AppSnackBar.error(context, 'No se pudo cargar la imagen.');
+      }
     } finally {
       if (mounted) setState(() => _loadingImg = false);
     }
@@ -111,18 +114,18 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
                   _adjuntarImagen(ImageSource.gallery);
                 },
               ),
-              if (_imagenFile != null)
+              if (_comprobanteFile != null)
                 ListTile(
                   leading: const CircleAvatar(
                     backgroundColor: AppTheme.errorLight,
-                    child:
-                        Icon(Icons.delete_outline, color: AppTheme.errorColor),
+                    child: Icon(Icons.delete_outline,
+                        color: AppTheme.errorColor),
                   ),
                   title: const Text('Quitar adjunto',
                       style: TextStyle(color: AppTheme.errorColor)),
                   onTap: () {
                     Navigator.pop(context);
-                    setState(() => _imagenFile = null);
+                    setState(() => _comprobanteFile = null);
                   },
                 ),
             ],
@@ -144,14 +147,8 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
   // ── Guardar ───────────────────────────────────
 
   Future<void> _guardar() async {
-    if (_proveedorSeleccionado == null) {
-      setState(() => _proveedorError = true);
-      return;
-    }
-    setState(() => _proveedorError = false);
-
     if (_items.isEmpty) {
-      AppSnackBar.error(context, 'Agrega al menos un producto a la compra.');
+      AppSnackBar.error(context, 'Agrega al menos un producto a la venta.');
       return;
     }
 
@@ -160,11 +157,6 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
       if (item.producto == null) {
         AppSnackBar.error(
             context, 'El producto ${i + 1} no ha sido seleccionado.');
-        return;
-      }
-      if (item.unidad == null) {
-        AppSnackBar.error(
-            context, 'Selecciona la unidad del producto ${i + 1}.');
         return;
       }
       if (item.cantidad <= 0) {
@@ -179,50 +171,141 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
       }
     }
 
+    // RF-VNT02: aviso si pago no es efectivo y no hay comprobante
+    if (_requiereComprobante && _comprobanteFile == null) {
+      final continuar = await _mostrarAvisoSinComprobante();
+      if (!continuar) return;
+    }
+
     setState(() => _isLoading = true);
 
     final now = AppFormatters.dateTimeToDb(DateTime.now());
 
-    final compra = Compra(
-      proveedorId: _proveedorSeleccionado!.id!,
-      proveedor: _proveedorSeleccionado,
-      fechaCompra: AppFormatters.dateToDb(_fechaCompra),
+    final venta = Venta(
+      notasCliente: _notasCtrl.text.trim().isEmpty
+          ? null
+          : _notasCtrl.text.trim(),
+      fechaVenta: AppFormatters.dateToDb(_fechaVenta),
       metodoPago: _metodoPago,
-      imagenPath: _imagenFile?.path,
+      imagenPath: _comprobanteFile?.path,
       fechaRegistro: now,
     );
 
     final items = _items.map((item) {
-      final qty = item.cantidad;
-      final price =
-          item.usarPrecioTotal && qty > 0 ? item.precio / qty : item.precio;
-
-      return CompraItem(
-        compraId: 0,
+      return VentaItem(
+        ventaId: 0,
         productoId: item.producto!.id!,
-        unidadMedidaId: item.unidad!.id!,
         productoNombre: item.producto!.nombre,
-        unidadAbreviatura: item.unidad!.abreviatura,
-        cantidad: qty,
-        precioUnitario: price,
+        unidadAbreviatura: item.producto!.unidadNombre,
+        cantidad: item.cantidad,
+        precioUnitario: item.precio,
       );
     }).toList();
 
-    final error =
-        await context.read<CompraProvider>().guardarCompra(compra, items);
+    final result =
+        await context.read<VentaProvider>().guardarVenta(venta, items);
 
     if (mounted) {
       setState(() => _isLoading = false);
-      if (error != null) {
-        AppSnackBar.error(context, error);
+      if (result.error != null) {
+        AppSnackBar.error(context, result.error!);
       } else {
-        AppSnackBar.success(context, AppMessages.msjCompraGuardada);
-        Navigator.pop(context, true);
+        // RF-VNT03: mostrar alertas de stock insuficiente (no bloquea)
+        if (result.alertasStock.isNotEmpty && mounted) {
+          _mostrarAlertasStock(result.alertasStock);
+        } else {
+          AppSnackBar.success(context, AppMessages.msjVentaGuardada);
+          Navigator.pop(context, true);
+        }
       }
     }
   }
 
-  // ── Selector de producto por item ─────────────
+  Future<bool> _mostrarAvisoSinComprobante() async {
+    final continuar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Sin comprobante', style: AppTextStyles.heading3),
+        content: Text(
+          'El método de pago "$_metodoPago" generalmente requiere comprobante. '
+          '¿Deseas guardar la venta sin adjuntar uno?',
+          style: AppTextStyles.body,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Guardar sin comprobante',
+                style: TextStyle(color: AppTheme.warningColor)),
+          ),
+        ],
+      ),
+    );
+    return continuar ?? false;
+  }
+
+  void _mostrarAlertasStock(Map<String, double> alertas) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded,
+                color: AppTheme.warningColor, size: 22),
+            const SizedBox(width: 8),
+            const Text('Stock insuficiente', style: AppTextStyles.heading3),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'La venta fue guardada, pero los siguientes productos tienen stock bajo:',
+              style: AppTextStyles.body,
+            ),
+            const SizedBox(height: 12),
+            ...alertas.entries.map(
+              (e) => Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  children: [
+                    const Icon(Icons.circle,
+                        size: 6, color: AppTheme.warningColor),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '${e.key}: ${e.value.toStringAsFixed(1)} disponibles',
+                        style: const TextStyle(
+                            fontSize: 13, color: AppTheme.warningColor),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              if (mounted) {
+                AppSnackBar.success(context, AppMessages.msjVentaGuardada);
+                Navigator.pop(context, true);
+              }
+            },
+            child: const Text('Entendido'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Selector de producto ──────────────────────
 
   Future<void> _seleccionarProducto(int index) async {
     final inv = context.read<InventoryProvider>();
@@ -236,10 +319,14 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
       ),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setModal) {
+          // Solo productos terminados (los que se venden)
           final filtrados = inv.productos
               .where((p) =>
-                  searchText.isEmpty ||
-                  p.nombre.toLowerCase().contains(searchText.toLowerCase()))
+                  !p.esMateriaPrima &&
+                  (searchText.isEmpty ||
+                      p.nombre
+                          .toLowerCase()
+                          .contains(searchText.toLowerCase())))
               .toList();
 
           return Padding(
@@ -274,7 +361,7 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
                     autofocus: true,
                     onChanged: (v) => setModal(() => searchText = v),
                     decoration: const InputDecoration(
-                      hintText: 'Buscar producto...',
+                      hintText: 'Buscar producto terminado...',
                       prefixIcon: Icon(Icons.search, size: 20),
                     ),
                   ),
@@ -294,24 +381,52 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
                               final p = filtrados[i];
                               return ListTile(
                                 leading: CircleAvatar(
-                                  backgroundColor: p.esMateriaPrima
+                                  backgroundColor: p.stockBajo
                                       ? AppTheme.warningLight
                                       : AppTheme.primaryLighter,
                                   child: Icon(
-                                    p.esMateriaPrima
-                                        ? Icons.grass
-                                        : Icons.inventory_2,
+                                    Icons.inventory_2,
                                     size: 18,
-                                    color: p.esMateriaPrima
+                                    color: p.stockBajo
                                         ? AppTheme.warningColor
                                         : AppTheme.primaryColor,
                                   ),
                                 ),
                                 title: Text(p.nombre),
-                                subtitle: Text(
-                                  '${p.categoria} · ${p.unidadNombre}',
-                                  style: AppTextStyles.label,
+                                subtitle: Row(
+                                  children: [
+                                    Text(
+                                      'Stock: ${p.stockActual.toStringAsFixed(1)} ${p.unidadNombre}',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: p.stockBajo
+                                            ? AppTheme.warningColor
+                                            : AppTheme.textSecondary,
+                                      ),
+                                    ),
+                                    if (p.precioVenta != null) ...[
+                                      const Text(
+                                        '  ·  ',
+                                        style: TextStyle(
+                                            color: AppTheme.textSecondary,
+                                            fontSize: 12),
+                                      ),
+                                      Text(
+                                        AppFormatters.formatMoneda(
+                                            p.precioVenta!),
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: AppTheme.successColor,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
                                 ),
+                                trailing: p.stockBajo
+                                    ? const Icon(Icons.warning_amber_rounded,
+                                        color: AppTheme.warningColor, size: 18)
+                                    : null,
                                 onTap: () => Navigator.pop(ctx, p),
                               );
                             },
@@ -328,8 +443,11 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
     if (result is Producto) {
       setState(() {
         _items[index].producto = result;
-        // Pre-seleccionar unidad del producto
-        _items[index].unidad = result.unidadMedida;
+        // Pre-poblar precio con el precio de venta del producto si existe
+        if (result.precioVenta != null) {
+          _items[index].precioCtrl.text =
+              result.precioVenta!.toStringAsFixed(0);
+        }
       });
     } else if (result is String && result.startsWith('create:')) {
       final nombre = result.substring(7);
@@ -343,12 +461,17 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
       if (created == true && mounted) {
         await inv.cargarProductos();
         final match = inv.productos
-            .where((p) => p.nombre.toLowerCase() == nombre.toLowerCase())
+            .where((p) =>
+                !p.esMateriaPrima &&
+                p.nombre.toLowerCase() == nombre.toLowerCase())
             .toList();
         if (match.isNotEmpty) {
           setState(() {
             _items[index].producto = match.first;
-            _items[index].unidad = match.first.unidadMedida;
+            if (match.first.precioVenta != null) {
+              _items[index].precioCtrl.text =
+                  match.first.precioVenta!.toStringAsFixed(0);
+            }
           });
         }
       }
@@ -366,24 +489,22 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('Nueva compra'),
+        title: const Text('Nueva venta'),
         centerTitle: false,
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // ── Proveedor ─────────────────────────────
+          // ── Cliente / Notas ───────────────────────
           _SeccionCard(
-            icon: Icons.storefront_outlined,
-            title: 'Proveedor',
+            icon: Icons.person_outline,
+            title: 'Cliente (opcional)',
             children: [
-              ProveedorSelector(
-                value: _proveedorSeleccionado,
-                errorText: _proveedorError ? 'Selecciona un proveedor' : null,
-                onSelected: (p) => setState(() {
-                  _proveedorSeleccionado = p;
-                  _proveedorError = false;
-                }),
+              AppFormField(
+                label: 'Nombre del cliente / Notas',
+                hint: 'Ej: María García, venta por mayor...',
+                controller: _notasCtrl,
+                maxLines: 2,
               ),
             ],
           ),
@@ -395,15 +516,15 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
             title: 'Detalle',
             children: [
               // Fecha
-              const Text('FECHA DE COMPRA', style: AppTextStyles.label),
+              const Text('FECHA DE VENTA', style: AppTextStyles.label),
               const SizedBox(height: 6),
               GestureDetector(
                 onTap: () async {
                   final fecha = await showDatePicker(
                     context: context,
-                    initialDate: _fechaCompra,
+                    initialDate: _fechaVenta,
                     firstDate: DateTime(2020),
-                    lastDate: DateTime.now(),
+                    lastDate: DateTime.now(),             
                     builder: (ctx, child) => Theme(
                       data: Theme.of(ctx).copyWith(
                         colorScheme: const ColorScheme.light(
@@ -412,11 +533,11 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
                       child: child!,
                     ),
                   );
-                  if (fecha != null) setState(() => _fechaCompra = fecha);
+                  if (fecha != null) setState(() => _fechaVenta = fecha);
                 },
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 14),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     border: Border.all(color: AppTheme.dividerColor),
@@ -426,7 +547,7 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
                     children: [
                       Expanded(
                         child: Text(
-                          AppFormatters.fechaDisplay.format(_fechaCompra),
+                          AppFormatters.fechaDisplay.format(_fechaVenta),
                           style: const TextStyle(
                               fontSize: 14, color: Color(0xFF1F2937)),
                         ),
@@ -448,8 +569,41 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
                 items: AppConstants.metodosPago
                     .map((m) => DropdownMenuItem(value: m, child: Text(m)))
                     .toList(),
-                onChanged: (v) => setState(() => _metodoPago = v!),
+                onChanged: (v) => setState(() {
+                  _metodoPago = v!;
+                  // Quitar comprobante si cambia a efectivo
+                  if (v.toLowerCase() == 'efectivo') {
+                    _comprobanteFile = null;
+                  }
+                }),
               ),
+
+              // Aviso comprobante para métodos distintos de efectivo
+              if (_requiereComprobante) ...[
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.warningLight,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.info_outline,
+                          color: AppTheme.warningColor, size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Se recomienda adjuntar el comprobante de $_metodoPago.',
+                          style: const TextStyle(
+                              fontSize: 12, color: AppTheme.warningColor),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 12),
@@ -463,11 +617,11 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.inventory_2_outlined,
+                      const Icon(Icons.point_of_sale_outlined,
                           size: 18, color: AppTheme.primaryColor),
                       const SizedBox(width: 8),
                       const Text(
-                        'Productos comprados',
+                        'Productos vendidos',
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
@@ -480,14 +634,14 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
                         child: const Row(
                           children: [
                             Icon(Icons.add_circle,
-                                size: 18, color: AppTheme.primaryLight),
+                                size: 18, color: AppTheme.primaryColor),
                             SizedBox(width: 4),
                             Text(
                               'Agregar',
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
-                                color: AppTheme.primaryLight,
+                                color: AppTheme.primaryColor,
                               ),
                             ),
                           ],
@@ -526,8 +680,6 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
                       onEliminar: () => _eliminarItem(i),
                       onChanged: () => setState(() {}),
                       onSeleccionarProducto: () => _seleccionarProducto(i),
-                      onSeleccionarUnidad: (u) =>
-                          setState(() => _items[i].unidad = u),
                     ),
                   ),
 
@@ -570,19 +722,23 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
           ),
           const SizedBox(height: 12),
 
-          // ── Adjunto ───────────────────────────────
+          // ── Comprobante adjunto ───────────────────
           _SeccionCard(
             icon: Icons.attach_file_rounded,
-            title: 'Adjunto (opcional)',
+            title: _requiereComprobante
+                ? 'Comprobante de pago (recomendado)'
+                : 'Comprobante (opcional)',
             children: [
-              _imagenFile != null
+              _comprobanteFile != null
                   ? _ImagenPreview(
-                      imagen: _imagenFile!,
+                      imagen: _comprobanteFile!,
                       onCambiar: _mostrarOpcionesImagen,
-                      onEliminar: () => setState(() => _imagenFile = null),
+                      onEliminar: () =>
+                          setState(() => _comprobanteFile = null),
                     )
                   : _AreaAdjunto(
                       isLoading: _loadingImg,
+                      esRequerido: _requiereComprobante,
                       onTap: _mostrarOpcionesImagen,
                     ),
             ],
@@ -590,10 +746,11 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
           const SizedBox(height: 24),
 
           AppButton(
-            texto: 'Guardar compra',
+            texto: 'Guardar venta',
             onPressed: _guardar,
             isLoading: _isLoading,
             icono: Icons.save_outlined,
+            color: AppTheme.primaryColor,
           ),
           const SizedBox(height: 24),
         ],
@@ -610,7 +767,6 @@ class _ItemRow extends StatelessWidget {
   final VoidCallback onEliminar;
   final VoidCallback onChanged;
   final VoidCallback onSeleccionarProducto;
-  final void Function(UnidadMedida) onSeleccionarUnidad;
 
   const _ItemRow({
     required this.item,
@@ -618,7 +774,6 @@ class _ItemRow extends StatelessWidget {
     required this.onEliminar,
     required this.onChanged,
     required this.onSeleccionarProducto,
-    required this.onSeleccionarUnidad,
   });
 
   @override
@@ -655,14 +810,34 @@ class _ItemRow extends StatelessWidget {
                               ? Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(item.producto!.nombre,
-                                        style: const TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
-                                          color: Color(0xFF1F2937),
-                                        )),
-                                    Text(item.producto!.categoria,
-                                        style: AppTextStyles.label),
+                                    Text(
+                                      item.producto!.nombre,
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFF1F2937),
+                                      ),
+                                    ),
+                                    Row(
+                                      children: [
+                                        Text(
+                                          'Stock: ${item.producto!.stockActual.toStringAsFixed(1)} ${item.producto!.unidadNombre}',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: item.producto!.stockBajo
+                                                ? AppTheme.warningColor
+                                                : AppTheme.textSecondary,
+                                          ),
+                                        ),
+                                        if (item.producto!.stockBajo) ...[
+                                          const SizedBox(width: 4),
+                                          const Icon(
+                                              Icons.warning_amber_rounded,
+                                              size: 12,
+                                              color: AppTheme.warningColor),
+                                        ],
+                                      ],
+                                    ),
                                   ],
                                 )
                               : const Text(
@@ -704,52 +879,19 @@ class _ItemRow extends StatelessWidget {
               Expanded(
                 flex: 2,
                 child: _MiniField(
-                  label:
-                      item.usarPrecioTotal ? 'Precio total' : 'Precio unitario',
+                  label: 'Precio unitario (COP)',
                   controller: item.precioCtrl,
                   onChanged: onChanged,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-
-          // Unidad de medida selector
-          UnidadMedidaSelector(
-            value: item.unidad,
-            label: 'Unidad de compra *',
-            onSelected: onSeleccionarUnidad,
-          ),
           const SizedBox(height: 8),
 
-          // Toggle precio total/unitario + subtotal
+          // Subtotal
           Row(
+            mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              GestureDetector(
-                onTap: () {
-                  item.usarPrecioTotal = !item.usarPrecioTotal;
-                  onChanged();
-                },
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryLighter,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    item.usarPrecioTotal
-                        ? 'Usar precio unitario'
-                        : 'Usar precio total',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.primaryColor,
-                    ),
-                  ),
-                ),
-              ),
-              const Spacer(),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
@@ -794,7 +936,7 @@ class _SinProductos extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             query.isEmpty
-                ? 'No hay productos registrados'
+                ? 'No hay productos terminados registrados'
                 : 'No se encontró "$query"',
             style:
                 AppTextStyles.heading3.copyWith(color: AppTheme.textSecondary),
@@ -846,12 +988,14 @@ class _SeccionCard extends StatelessWidget {
               children: [
                 Icon(icon, size: 18, color: AppTheme.primaryColor),
                 const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: AppTheme.primaryColor,
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.primaryColor,
+                    ),
                   ),
                 ),
               ],
@@ -888,7 +1032,8 @@ class _MiniField extends StatelessWidget {
         TextFormField(
           controller: controller,
           onChanged: (_) => onChanged(),
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          keyboardType:
+              const TextInputType.numberWithOptions(decimal: true),
           decoration: InputDecoration(
             isDense: true,
             filled: true,
@@ -913,9 +1058,14 @@ class _MiniField extends StatelessWidget {
 
 class _AreaAdjunto extends StatelessWidget {
   final bool isLoading;
+  final bool esRequerido;
   final VoidCallback onTap;
 
-  const _AreaAdjunto({required this.isLoading, required this.onTap});
+  const _AreaAdjunto({
+    required this.isLoading,
+    required this.esRequerido,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -926,11 +1076,15 @@ class _AreaAdjunto extends StatelessWidget {
         height: 110,
         decoration: BoxDecoration(
           border: Border.all(
-            color: AppTheme.primaryLight.withValues(alpha: 0.5),
+            color: esRequerido
+                ? AppTheme.warningColor.withValues(alpha: 0.6)
+                : AppTheme.primaryLight.withValues(alpha: 0.5),
             width: 1.5,
           ),
           borderRadius: BorderRadius.circular(12),
-          color: AppTheme.primaryLighter.withValues(alpha: 0.3),
+          color: esRequerido
+              ? AppTheme.warningLight.withValues(alpha: 0.4)
+              : AppTheme.primaryLighter.withValues(alpha: 0.3),
         ),
         child: isLoading
             ? const Center(child: CircularProgressIndicator())
@@ -939,21 +1093,25 @@ class _AreaAdjunto extends StatelessWidget {
                 children: [
                   Icon(Icons.camera_alt_outlined,
                       size: 28,
-                      color: AppTheme.primaryLight.withValues(alpha: 0.8)),
+                      color: esRequerido
+                          ? AppTheme.warningColor
+                          : AppTheme.primaryLight.withValues(alpha: 0.8)),
                   const SizedBox(height: 8),
-                  const Text(
-                    'Adjuntar factura',
+                  Text(
+                    'Adjuntar comprobante',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: AppTheme.primaryLight,
+                      color: esRequerido
+                          ? AppTheme.warningColor
+                          : AppTheme.primaryLight,
                     ),
                   ),
                   const SizedBox(height: 2),
                   const Text(
-                    'Sube una foto del comprobante físico',
-                    style:
-                        TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                    'Sube una foto del comprobante de pago',
+                    style: TextStyle(
+                        fontSize: 12, color: AppTheme.textSecondary),
                   ),
                 ],
               ),
@@ -1026,7 +1184,8 @@ class _BtnImagen extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(8),
           boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4)
+            BoxShadow(
+                color: Colors.black.withValues(alpha: 0.1), blurRadius: 4)
           ],
         ),
         child: Icon(icon, size: 16, color: color),
@@ -1039,8 +1198,6 @@ class _BtnImagen extends StatelessWidget {
 
 class _ItemEditable {
   Producto? producto;
-  UnidadMedida? unidad;
-  bool usarPrecioTotal = false;
 
   final TextEditingController cantidadCtrl = TextEditingController();
   final TextEditingController precioCtrl = TextEditingController();
@@ -1050,7 +1207,7 @@ class _ItemEditable {
   double get precio =>
       double.tryParse(precioCtrl.text.replaceAll(',', '.')) ?? 0;
 
-  double get subtotal => usarPrecioTotal ? precio : cantidad * precio;
+  double get subtotal => cantidad * precio;
 
   void dispose() {
     cantidadCtrl.dispose();
