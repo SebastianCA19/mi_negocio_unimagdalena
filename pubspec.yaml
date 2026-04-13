@@ -46,6 +46,9 @@ dependencies:
   # Iconos
   cupertino_icons: ^1.0.6
 
+  # Selector de archivos
+  file_picker: ^8.0.0
+
 dev_dependencies:
 
   flutter_test:

@@ -32,40 +32,45 @@ class _AuthScreenState extends State<AuthScreen> {
       _errorMensaje = null;
     });
 
-    await Future.delayed(const Duration(seconds: 1)); // simula llamada de red
+    // Simula latencia de red
+    await Future.delayed(const Duration(seconds: 1));
 
     final correo = _correoController.text.trim();
 
-    // TODO: reemplazar con llamada real a la API institucional
-    // final response = await http.post(Uri.parse('URL_API_UNIMAGDALENA'), body: {'correo': correo});
-    // if (response.statusCode == 200) { ... }
+    // TODO: reemplazar con llamada real a la API institucional.
+    // La respuesta real debería incluir nombre y apellido del estudiante.
+    // Ejemplo:
+    // final response = await http.post(...);
+    // final data = jsonDecode(response.body);
+    // final nombre = data['nombre'];
+    // final apellido = data['apellido'];
 
-    // Simulacion: cualquier correo con dominio correcto se acepta
     if (AuthProvider.esCorreoValido(correo)) {
       if (mounted) {
-        await context.read<AuthProvider>().guardarSesion(correo);
+        // SIMULACIÓN: nombre y apellido hardcodeados.
+        // Cuando el login sea real, estos valores vendrán de la API.
+        await context.read<AuthProvider>().guardarSesion(
+              correo,
+              nombre: 'Juan David',
+              apellido: 'Delgado',
+            );
         AppSnackBar.success(context, AppMessages.msjSesionOk);
       }
     } else {
-      setState(() {
-        _errorMensaje = AppMessages.msjCorreoInvalido;
-      });
+      setState(() => _errorMensaje = AppMessages.msjCorreoInvalido);
     }
 
-    if (mounted) {
-      setState(() => _isLoading = false);
-    }
+    if (mounted) setState(() => _isLoading = false);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      resizeToAvoidBottomInset: false,
       backgroundColor: AppTheme.primaryColor,
       body: SafeArea(
         child: Column(
           children: [
-            // Header con logo/nombre
+            // ── Header ───────────────────────────────
             Expanded(
               flex: 2,
               child: Center(
@@ -110,7 +115,7 @@ class _AuthScreenState extends State<AuthScreen> {
               ),
             ),
 
-            // Panel de login
+            // ── Panel de login ────────────────────────
             Expanded(
               flex: 3,
               child: Container(
@@ -125,10 +130,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Acceder',
-                        style: AppTextStyles.heading1,
-                      ),
+                      const Text('Acceder', style: AppTextStyles.heading1),
                       const SizedBox(height: 6),
                       const Text(
                         'Ingresa tu correo institucional para continuar.',
@@ -169,9 +171,7 @@ class _AuthScreenState extends State<AuthScreen> {
                                 child: Text(
                                   _errorMensaje!,
                                   style: const TextStyle(
-                                    color: AppTheme.errorColor,
-                                    fontSize: 13,
-                                  ),
+                                      color: AppTheme.errorColor, fontSize: 13),
                                 ),
                               ),
                             ],
@@ -190,9 +190,8 @@ class _AuthScreenState extends State<AuthScreen> {
                         child: Text(
                           'Solo para estudiantes activos de la\nUniversidad del Magdalena',
                           textAlign: TextAlign.center,
-                          style: AppTextStyles.bodySecondary.copyWith(
-                            fontSize: 12,
-                          ),
+                          style: AppTextStyles.bodySecondary
+                              .copyWith(fontSize: 12),
                         ),
                       ),
                     ],

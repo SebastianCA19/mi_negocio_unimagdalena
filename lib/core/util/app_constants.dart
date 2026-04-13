@@ -36,6 +36,9 @@ class AppConstants {
   // Extension del archivo de backup
   static const String backupExtension = '.mnbak';
 
+  // Extension del archivo sin punto
+  static const String backupExtensionSinPunto = 'mnbak';
+
   // Prefijo del archivo PDF de reporte
   static const String pdfPrefix = 'Reporte';
 
@@ -54,23 +57,36 @@ class AppConstants {
 
 // Mensajes del sistema
 class AppMessages {
-  static const String msjSesionOk = 'Correo verificado correctamente. Bienvenido a la aplicacion.';
-  static const String msjCorreoInvalido = 'El correo ingresado no corresponde a un estudiante activo. Verifique e intente nuevamente.';
-  static const String msjSinInternet = 'No hay conexion a Internet. La verificacion no puede completarse en este momento.';
-  static const String msjSesionExpirada = 'Su sesion ha expirado. Por favor verifique su correo institucional para continuar.';
-  static const String msjCompraGuardada = 'Compra registrada exitosamente. El inventario ha sido actualizado.';
-  static const String msjVentaGuardada = 'Venta registrada exitosamente. El inventario ha sido actualizado.';
+  static const String msjSesionOk =
+      'Correo verificado correctamente. Bienvenido a la aplicacion.';
+  static const String msjCorreoInvalido =
+      'El correo ingresado no corresponde a un estudiante activo. Verifique e intente nuevamente.';
+  static const String msjSinInternet =
+      'No hay conexion a Internet. La verificacion no puede completarse en este momento.';
+  static const String msjSesionExpirada =
+      'Su sesion ha expirado. Por favor verifique su correo institucional para continuar.';
+  static const String msjCompraGuardada =
+      'Compra registrada exitosamente. El inventario ha sido actualizado.';
+  static const String msjVentaGuardada =
+      'Venta registrada exitosamente. El inventario ha sido actualizado.';
   static const String msjProductoGuardado = 'Producto guardado correctamente.';
-  static const String msjProductoEliminado = 'Producto eliminado correctamente.';
+  static const String msjProductoEliminado =
+      'Producto eliminado correctamente.';
   static const String msjAjusteGuardado = 'Ajuste registrado correctamente.';
-  static const String msjRecetaGuardada = 'Receta de produccion guardada correctamente.';
+  static const String msjRecetaGuardada =
+      'Receta de produccion guardada correctamente.';
   static const String msjSesionCerrada = 'Sesion cerrada correctamente.';
-  static const String msjRegistroEliminado = 'Registro eliminado correctamente.';
-  static const String msjRegistroEliminadoConStock = 'Registro eliminado y stock restituido al inventario.';
-  static const String msjCamposObligatorios = 'Por favor complete todos los campos obligatorios.';
-  static const String msjSinDatos = 'No se encontraron registros con los filtros aplicados.';
+  static const String msjRegistroEliminado =
+      'Registro eliminado correctamente.';
+  static const String msjRegistroEliminadoConStock =
+      'Registro eliminado y stock restituido al inventario.';
+  static const String msjCamposObligatorios =
+      'Por favor complete todos los campos obligatorios.';
+  static const String msjSinDatos =
+      'No se encontraron registros con los filtros aplicados.';
 
-  static String msjStockInsuficiente(String producto, double cantidad, String unidad) =>
+  static String msjStockInsuficiente(
+          String producto, double cantidad, String unidad) =>
       'El producto "$producto" tiene solo ${cantidad.toStringAsFixed(1)} $unidad disponibles. La operacion fue guardada pero el inventario puede quedar en negativo.';
 
   static String msjAjusteStock(double cantidad, String unidad) =>

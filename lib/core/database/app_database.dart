@@ -29,12 +29,15 @@ class AppDatabase {
 
   Future<void> _onCreate(Database db, int version) async {
     // ── Sesion del usuario autenticado ──────────────────────────────────────
-    // usuario_id identifica de forma unica al usuario (hash del correo
-    // institucional) para no almacenar datos personales en texto plano.
+    // correo: correo institucional verificado.
+    // nombre / apellido: obtenidos del proveedor de identidad institucional
+    // (o hardcodeados durante la simulacion de login).
     await db.execute('''
       CREATE TABLE sesion (
         id                INTEGER PRIMARY KEY AUTOINCREMENT,
-        usuario_id        INTEGER NOT NULL UNIQUE,
+        correo            TEXT    NOT NULL UNIQUE,
+        nombre            TEXT    NOT NULL DEFAULT '',
+        apellido          TEXT    NOT NULL DEFAULT '',
         fecha_inicio      TEXT    NOT NULL,
         fecha_expiracion  TEXT    NOT NULL,
         activa            INTEGER NOT NULL DEFAULT 1
@@ -101,20 +104,18 @@ class AppDatabase {
     // ── Compras ──────────────────────────────────────────────────────────────
     await db.execute('''
       CREATE TABLE compras (
-        id            INTEGER PRIMARY KEY AUTOINCREMENT,
-        proveedor_id  INTEGER NOT NULL,
-        fecha_compra  TEXT    NOT NULL,
-        metodo_pago   TEXT    NOT NULL,
-        imagen_path   TEXT,
-        fecha_registro TEXT   NOT NULL,
+        id             INTEGER PRIMARY KEY AUTOINCREMENT,
+        proveedor_id   INTEGER NOT NULL,
+        fecha_compra   TEXT    NOT NULL,
+        metodo_pago    TEXT    NOT NULL,
+        imagen_path    TEXT,
+        fecha_registro TEXT    NOT NULL,
         FOREIGN KEY (proveedor_id) REFERENCES proveedores(id)
           ON DELETE RESTRICT
       )
     ''');
 
     // ── Items de cada compra ─────────────────────────────────────────────────
-    // El subtotal se calcula en tiempo de consulta (cantidad * precio_unitario)
-    // para evitar inconsistencias ante actualizaciones de precio.
     await db.execute('''
       CREATE TABLE compra_items (
         id               INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -123,8 +124,8 @@ class AppDatabase {
         unidad_medida_id INTEGER NOT NULL,
         cantidad         REAL    NOT NULL,
         precio_unitario  REAL    NOT NULL,
-        FOREIGN KEY (compra_id)        REFERENCES compras(id)        ON DELETE CASCADE,
-        FOREIGN KEY (producto_id)      REFERENCES productos(id)      ON DELETE RESTRICT,
+        FOREIGN KEY (compra_id)        REFERENCES compras(id)         ON DELETE CASCADE,
+        FOREIGN KEY (producto_id)      REFERENCES productos(id)       ON DELETE RESTRICT,
         FOREIGN KEY (unidad_medida_id) REFERENCES unidades_medida(id) ON DELETE RESTRICT
       )
     ''');
@@ -132,12 +133,12 @@ class AppDatabase {
     // ── Ventas ───────────────────────────────────────────────────────────────
     await db.execute('''
       CREATE TABLE ventas (
-        id              INTEGER PRIMARY KEY AUTOINCREMENT,
-        notas_cliente   TEXT,
-        fecha_venta     TEXT NOT NULL,
-        metodo_pago     TEXT NOT NULL,
-        imagen_path     TEXT,
-        fecha_registro  TEXT NOT NULL
+        id             INTEGER PRIMARY KEY AUTOINCREMENT,
+        notas_cliente  TEXT,
+        fecha_venta    TEXT NOT NULL,
+        metodo_pago    TEXT NOT NULL,
+        imagen_path    TEXT,
+        fecha_registro TEXT NOT NULL
       )
     ''');
 
@@ -156,29 +157,27 @@ class AppDatabase {
 
     // ── Ajustes manuales de inventario ───────────────────────────────────────
     // tipo: 'Aumento' | 'Disminucion'
-    // Los stocks anterior y nuevo se eliminan: son derivables consultando el
-    // historial de ajustes ordenado por fecha, lo que evita inconsistencias.
     await db.execute('''
       CREATE TABLE ajustes_inventario (
-        id          INTEGER PRIMARY KEY AUTOINCREMENT,
-        producto_id INTEGER NOT NULL,
-        tipo        TEXT    NOT NULL,
-        cantidad    REAL    NOT NULL,
-        motivo      TEXT    NOT NULL,
-        fecha_ajuste TEXT   NOT NULL,
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        producto_id  INTEGER NOT NULL,
+        tipo         TEXT    NOT NULL,
+        cantidad     REAL    NOT NULL,
+        motivo       TEXT    NOT NULL,
+        fecha_ajuste TEXT    NOT NULL,
         FOREIGN KEY (producto_id) REFERENCES productos(id) ON DELETE CASCADE
       )
     ''');
 
     // ── Indices ──────────────────────────────────────────────────────────────
     await db.execute(
-        'CREATE INDEX idx_compras_fecha      ON compras(fecha_compra)');
+        'CREATE INDEX idx_compras_fecha         ON compras(fecha_compra)');
     await db.execute(
-        'CREATE INDEX idx_compras_proveedor  ON compras(proveedor_id)');
+        'CREATE INDEX idx_compras_proveedor     ON compras(proveedor_id)');
+    await db.execute(
+        'CREATE INDEX idx_ventas_fecha          ON ventas(fecha_venta)');
     await db
-        .execute('CREATE INDEX idx_ventas_fecha       ON ventas(fecha_venta)');
-    await db
-        .execute('CREATE INDEX idx_productos_nombre   ON productos(nombre)');
+        .execute('CREATE INDEX idx_productos_nombre      ON productos(nombre)');
     await db.execute(
         'CREATE INDEX idx_compra_items_compra   ON compra_items(compra_id)');
     await db.execute(
@@ -190,13 +189,12 @@ class AppDatabase {
   }
 
   Future<void> _insertarUnidadesBase(DatabaseExecutor db) async {
-    // Cada grupo comparte la misma unidad base (factor_base = 1).
     // Conversion: valor_en_base = cantidad * factor_base
     //
-    // Masa     → gramo  (g)   como unidad base
+    // Masa     → gramo  (g)    como unidad base
     // Volumen  → mililitro (mL) como unidad base
     // Longitud → centimetro (cm) como unidad base
-    // Cantidad → unidad (ud) como unidad base
+    // Cantidad → unidad (ud)   como unidad base
     const rows = [
       // Cantidad
       ('Unidad', 'ud', 1.0),
@@ -222,7 +220,7 @@ class AppDatabase {
     }
   }
 
-  // ── Utilitarios ─────────────────────────────────────────────────────────────
+  // ── Utilitarios ──────────────────────────────────────────────────────────────
 
   /// Cierra la conexion. Debe llamarse solo al cerrar la aplicacion.
   Future<void> close() async {

@@ -38,8 +38,7 @@ class _VentaFormScreenState extends State<VentaFormScreen> {
 
   double get _total => _items.fold(0, (sum, item) => sum + item.subtotal);
 
-  bool get _requiereComprobante =>
-      _metodoPago.toLowerCase() != 'efectivo';
+  bool get _requiereComprobante => _metodoPago.toLowerCase() != 'efectivo';
 
   @override
   void initState() {
@@ -118,8 +117,8 @@ class _VentaFormScreenState extends State<VentaFormScreen> {
                 ListTile(
                   leading: const CircleAvatar(
                     backgroundColor: AppTheme.errorLight,
-                    child: Icon(Icons.delete_outline,
-                        color: AppTheme.errorColor),
+                    child:
+                        Icon(Icons.delete_outline, color: AppTheme.errorColor),
                   ),
                   title: const Text('Quitar adjunto',
                       style: TextStyle(color: AppTheme.errorColor)),
@@ -182,9 +181,8 @@ class _VentaFormScreenState extends State<VentaFormScreen> {
     final now = AppFormatters.dateTimeToDb(DateTime.now());
 
     final venta = Venta(
-      notasCliente: _notasCtrl.text.trim().isEmpty
-          ? null
-          : _notasCtrl.text.trim(),
+      notasCliente:
+          _notasCtrl.text.trim().isEmpty ? null : _notasCtrl.text.trim(),
       fechaVenta: AppFormatters.dateToDb(_fechaVenta),
       metodoPago: _metodoPago,
       imagenPath: _comprobanteFile?.path,
@@ -524,7 +522,7 @@ class _VentaFormScreenState extends State<VentaFormScreen> {
                     context: context,
                     initialDate: _fechaVenta,
                     firstDate: DateTime(2020),
-                    lastDate: DateTime.now(),             
+                    lastDate: DateTime.now(),
                     builder: (ctx, child) => Theme(
                       data: Theme.of(ctx).copyWith(
                         colorScheme: const ColorScheme.light(
@@ -536,8 +534,8 @@ class _VentaFormScreenState extends State<VentaFormScreen> {
                   if (fecha != null) setState(() => _fechaVenta = fecha);
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 14),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     border: Border.all(color: AppTheme.dividerColor),
@@ -582,8 +580,8 @@ class _VentaFormScreenState extends State<VentaFormScreen> {
               if (_requiereComprobante) ...[
                 const SizedBox(height: 10),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
                     color: AppTheme.warningLight,
                     borderRadius: BorderRadius.circular(8),
@@ -733,8 +731,7 @@ class _VentaFormScreenState extends State<VentaFormScreen> {
                   ? _ImagenPreview(
                       imagen: _comprobanteFile!,
                       onCambiar: _mostrarOpcionesImagen,
-                      onEliminar: () =>
-                          setState(() => _comprobanteFile = null),
+                      onEliminar: () => setState(() => _comprobanteFile = null),
                     )
                   : _AreaAdjunto(
                       isLoading: _loadingImg,
@@ -1032,8 +1029,7 @@ class _MiniField extends StatelessWidget {
         TextFormField(
           controller: controller,
           onChanged: (_) => onChanged(),
-          keyboardType:
-              const TextInputType.numberWithOptions(decimal: true),
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
           decoration: InputDecoration(
             isDense: true,
             filled: true,
@@ -1110,8 +1106,8 @@ class _AreaAdjunto extends StatelessWidget {
                   const SizedBox(height: 2),
                   const Text(
                     'Sube una foto del comprobante de pago',
-                    style: TextStyle(
-                        fontSize: 12, color: AppTheme.textSecondary),
+                    style:
+                        TextStyle(fontSize: 12, color: AppTheme.textSecondary),
                   ),
                 ],
               ),
@@ -1184,8 +1180,7 @@ class _BtnImagen extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(8),
           boxShadow: [
-            BoxShadow(
-                color: Colors.black.withValues(alpha: 0.1), blurRadius: 4)
+            BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4)
           ],
         ),
         child: Icon(icon, size: 16, color: color),
