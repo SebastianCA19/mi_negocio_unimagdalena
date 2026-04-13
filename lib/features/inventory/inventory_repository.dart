@@ -236,4 +236,63 @@ class InventoryRepository {
       );
     });
   }
+
+  /// Registra un ajuste de produccion: sube el stock del producto terminado
+  /// y descuenta cada insumo segun la receta × [cantidadProducida].
+  ///
+  /// Retorna la lista de [DescuentoInsumo] con el stock resultante de cada
+  /// insumo para que la UI pueda mostrarlo al usuario.
+  Future<List<DescuentoInsumo>> registrarAjusteProduccion(
+    AjusteInventario ajuste,
+    double nuevoStockProducto,
+    List<InsumoProducto> insumos,
+  ) async {
+    final db = await _db.database;
+    final descuentos = <DescuentoInsumo>[];
+
+    await db.transaction((txn) async {
+      // 1. Registrar el ajuste del producto terminado
+      await txn.insert('ajustes_inventario', ajuste.toMap()..remove('id'));
+      await txn.update(
+        'productos',
+        {'stock_actual': nuevoStockProducto},
+        where: 'id = ?',
+        whereArgs: [ajuste.productoId],
+      );
+
+      // 2. Descontar cada insumo
+      for (final insumo in insumos) {
+        final consumo = insumo.cantidadPorUnidad * ajuste.cantidad;
+
+        // Leer stock actual del insumo
+        final rows = await txn.query(
+          'productos',
+          columns: ['stock_actual'],
+          where: 'id = ?',
+          whereArgs: [insumo.insumoId],
+          limit: 1,
+        );
+        if (rows.isEmpty) continue;
+
+        final stockActual = (rows.first['stock_actual'] as num).toDouble();
+        final stockNuevo = stockActual - consumo;
+
+        await txn.update(
+          'productos',
+          {'stock_actual': stockNuevo},
+          where: 'id = ?',
+          whereArgs: [insumo.insumoId],
+        );
+
+        descuentos.add(DescuentoInsumo(
+          insumo: insumo,
+          consumo: consumo,
+          stockAnterior: stockActual,
+          stockNuevo: stockNuevo,
+        ));
+      }
+    });
+
+    return descuentos;
+  }
 }

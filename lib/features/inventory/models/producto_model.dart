@@ -219,3 +219,28 @@ class AjusteInventario {
     };
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Resultado del descuento de un insumo durante un ajuste de produccion.
+/// Se usa para mostrar al usuario qué insumos se consumieron y cuánto
+/// stock les queda.
+class DescuentoInsumo {
+  final InsumoProducto insumo;
+  final double consumo;
+  final double stockAnterior;
+  final double stockNuevo;
+
+  const DescuentoInsumo({
+    required this.insumo,
+    required this.consumo,
+    required this.stockAnterior,
+    required this.stockNuevo,
+  });
+
+  bool get stockNegativo => stockNuevo < 0;
+
+  String get nombreInsumo =>
+      insumo.insumo?.nombre ?? 'Insumo #${insumo.insumoId}';
+  String get unidadInsumo => insumo.insumo?.unidadNombre ?? '';
+}

@@ -168,6 +168,39 @@ class InventoryProvider extends ChangeNotifier {
     }
   }
 
+  /// Ajuste de produccion: sube el stock del producto terminado y descuenta
+  /// los insumos segun la receta. Solo aplica a productos terminados con
+  /// insumos definidos y tipo 'Aumento'.
+  Future<({String? error, List<DescuentoInsumo> descuentos})>
+      registrarAjusteProduccion({
+    required Producto producto,
+    required double cantidad,
+    required String motivo,
+  }) async {
+    try {
+      final nuevoStock = producto.stockActual + cantidad;
+      final ajuste = AjusteInventario(
+        productoId: producto.id!,
+        tipo: 'Aumento',
+        cantidad: cantidad,
+        motivo: motivo,
+        fechaAjuste: DateTime.now().toIso8601String(),
+      );
+      final descuentos = await _repo.registrarAjusteProduccion(
+        ajuste,
+        nuevoStock,
+        producto.insumos,
+      );
+      await cargarProductos();
+      return (error: null, descuentos: descuentos);
+    } catch (e) {
+      return (
+        error: 'Error al registrar producción: $e',
+        descuentos: <DescuentoInsumo>[]
+      );
+    }
+  }
+
   // ─── Insumos ─────────────────────────────────
 
   Future<List<InsumoProducto>> getInsumos(int productoId) =>
