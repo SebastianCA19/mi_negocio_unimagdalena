@@ -59,15 +59,22 @@ class _CompraDetalleScreenState extends State<CompraDetalleScreen> {
             child: Material(
               color: AppTheme.errorColor,
               shape: const CircleBorder(),
-              elevation: 2,
               child: InkWell(
                 customBorder: const CircleBorder(),
                 onTap: () => _confirmarEliminar(context),
-                child: const SizedBox(
-                  width: 40,
-                  height: 40,
-                  child:
-                      Icon(Icons.delete_forever, color: Colors.white, size: 22),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.delete_forever, color: Colors.white, size: 20),
+                      SizedBox(width: 6),
+                      Text(
+                        'Eliminar',
+                        style: TextStyle(color: Colors.white, fontSize: 14),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
