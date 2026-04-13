@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 import '../database/app_database.dart';
 import '../util/app_constants.dart';
@@ -47,14 +47,22 @@ class BackupService {
   }
 
   // ── Crear backup ──────────────────────────────────────────────────────────
+
+  /// Abre un selector de carpeta nativo. Si el usuario confirma, exporta la
+  /// base de datos a un archivo .mnbak en esa carpeta.
+  ///
   /// Retorna el [BackupInfo] del archivo creado, o **null** si el usuario
   /// canceló el selector de carpeta.
   Future<BackupInfo?> crearBackup({
     void Function(double progreso)? onProgreso,
   }) async {
-    final directorio = await getApplicationDocumentsDirectory();
-    final carpeta = directorio.path;
+    // 1. El usuario elige la carpeta destino
+    final carpeta = await FilePicker.platform.getDirectoryPath(
+      dialogTitle: 'Guardar copia de seguridad en…',
+    );
+    if (carpeta == null) return null;
 
+    // 2. Construir nombre de archivo con timestamp
     final timestamp = AppFormatters.dateTimeToDb(DateTime.now())
         .replaceAll(':', '-')
         .replaceAll(' ', '_');
@@ -62,6 +70,7 @@ class BackupService {
         '${AppConstants.backupPrefix}_$timestamp${AppConstants.backupExtension}';
     final archivo = File(join(carpeta, nombreArchivo));
 
+    // 3. Exportar cada tabla como lista de maps
     final db = await AppDatabase.instance.database;
     final Map<String, List<Map<String, dynamic>>> datos = {};
 
@@ -75,6 +84,7 @@ class BackupService {
       onProgreso?.call((i + 1) / _tablas.length * 0.9);
     }
 
+    // 4. Escribir JSON
     await archivo.writeAsString(jsonEncode(datos), encoding: utf8);
     onProgreso?.call(1.0);
 
@@ -86,11 +96,13 @@ class BackupService {
   }
 
   // ── Eliminar backup ───────────────────────────────────────────────────────
+
   Future<void> eliminarBackup(File archivo) async {
     if (await archivo.exists()) await archivo.delete();
   }
 
   // ── Restaurar backup ──────────────────────────────────────────────────────
+
   /// Restaura la base de datos desde un archivo .mnbak.
   /// Llama [onProgreso] con valores entre 0.0 y 1.0.
   Future<void> restaurarBackup(

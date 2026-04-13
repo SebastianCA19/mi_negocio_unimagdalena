@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:share_plus/share_plus.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/util/app_formatters.dart';
 import '../../../core/widgets/app_widgets.dart';
@@ -53,24 +52,27 @@ class _CopiaSeguridadState extends State<CopiaSeguridad> {
         },
       );
 
-      if (info == null) return;
+      if (info == null) {
+        // Usuario canceló el selector de carpeta
+        if (mounted) setState(() => _creando = false);
+        return;
+      }
 
-      // --- CAMBIO AQUÍ: Abrir el selector de destino del sistema ---
-      await Share.shareXFiles([XFile(info.archivo.path)],
-        text: 'Copia de seguridad ${info.nombre}',
-      );
-      // -----------------------------------------------------------
-
+      // Persistir la ruta para mostrarla en futuros accesos
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_keyUltimaRuta, info.archivo.path);
 
       _ultimoBackup = info;
       if (mounted) {
         setState(() => _creando = false);
-        AppSnackBar.success(context, 'Copia lista para guardar/enviar');
+        AppSnackBar.success(
+            context, 'Copia de seguridad creada correctamente.');
       }
     } catch (e) {
-      // ... manejo de error ...
+      if (mounted) {
+        setState(() => _creando = false);
+        AppSnackBar.error(context, 'Error al crear la copia: $e');
+      }
     }
   }
 
