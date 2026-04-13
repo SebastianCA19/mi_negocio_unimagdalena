@@ -58,12 +58,12 @@ class _CompraDetalleScreenState extends State<CompraDetalleScreen> {
             padding: const EdgeInsets.only(right: 12),
             child: Material(
               color: AppTheme.errorColor,
-              shape: const CircleBorder(),
+              shape: const StadiumBorder(),
               child: InkWell(
-                customBorder: const CircleBorder(),
+                customBorder: const StadiumBorder(),
                 onTap: () => _confirmarEliminar(context),
                 child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 12),
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [

@@ -45,10 +45,10 @@ class _VentaDetalleScreenState extends State<VentaDetalleScreen> {
     }
 
     final v = _venta!;
-    final clienteLabel = (v.notasCliente != null &&
-            v.notasCliente!.trim().isNotEmpty)
-        ? v.notasCliente!.trim()
-        : 'Venta directa';
+    final clienteLabel =
+        (v.notasCliente != null && v.notasCliente!.trim().isNotEmpty)
+            ? v.notasCliente!.trim()
+            : 'Venta directa';
 
     return Scaffold(
       backgroundColor: AppTheme.surfaceColor,
@@ -59,16 +59,23 @@ class _VentaDetalleScreenState extends State<VentaDetalleScreen> {
             padding: const EdgeInsets.only(right: 12),
             child: Material(
               color: AppTheme.errorColor,
-              shape: const CircleBorder(),
-              elevation: 2,
+              shape: const StadiumBorder(),
               child: InkWell(
-                customBorder: const CircleBorder(),
+                customBorder: const StadiumBorder(),
                 onTap: () => _confirmarEliminar(context),
-                child: const SizedBox(
-                  width: 40,
-                  height: 40,
-                  child: Icon(Icons.delete_forever,
-                      color: Colors.white, size: 22),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.delete_forever, color: Colors.white, size: 20),
+                      SizedBox(width: 6),
+                      Text(
+                        'Eliminar',
+                        style: TextStyle(color: Colors.white, fontSize: 14),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -190,8 +197,8 @@ class _VentaDetalleScreenState extends State<VentaDetalleScreen> {
                         horizontal: 16, vertical: 12),
                     decoration: const BoxDecoration(
                       color: AppTheme.primaryLighter,
-                      borderRadius: BorderRadius.vertical(
-                          bottom: Radius.circular(12)),
+                      borderRadius:
+                          BorderRadius.vertical(bottom: Radius.circular(12)),
                     ),
                     child: Row(
                       children: [

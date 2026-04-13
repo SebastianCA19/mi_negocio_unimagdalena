@@ -20,12 +20,6 @@ class AppConstants {
     'Otro',
   ];
 
-  // Categorias de productos
-  static const List<String> categoriaProductos = [
-    'Producto terminado',
-    'Materia prima',
-  ];
-
   // Tipos de ajuste de inventario
   static const String ajusteAumento = 'Aumento';
   static const String ajusteDisminucion = 'Disminucion';
@@ -36,22 +30,23 @@ class AppConstants {
   // Extension del archivo de backup
   static const String backupExtension = '.mnbak';
 
-  // Extension del archivo sin punto
-  static const String backupExtensionSinPunto = 'mnbak';
-
   // Prefijo del archivo PDF de reporte
   static const String pdfPrefix = 'Reporte';
 
-  // Nombres de las tablas (para el backup)
+  /// Tablas en orden topológico: cada tabla aparece después de todas
+  /// las tablas a las que referencia con FK.
+  /// Este orden se usa tanto para exportar como para restaurar backups.
   static const List<String> tablas = [
-    'sesion',
-    'productos',
-    'insumos_producto',
-    'compras',
-    'compra_items',
-    'ventas',
-    'venta_items',
-    'ajustes_inventario',
+    'unidades_medida', // sin dependencias
+    'sesion', // sin dependencias
+    'proveedores', // sin dependencias
+    'productos', // → unidades_medida
+    'insumos_producto', // → productos
+    'compras', // → proveedores
+    'compra_items', // → compras, productos, unidades_medida
+    'ventas', // sin dependencias externas
+    'venta_items', // → ventas, productos
+    'ajustes_inventario', // → productos
   ];
 }
 
@@ -87,7 +82,8 @@ class AppMessages {
 
   static String msjStockInsuficiente(
           String producto, double cantidad, String unidad) =>
-      'El producto "$producto" tiene solo ${cantidad.toStringAsFixed(1)} $unidad disponibles. La operacion fue guardada pero el inventario puede quedar en negativo.';
+      'El producto "$producto" tiene solo ${cantidad.toStringAsFixed(1)} $unidad disponibles. '
+      'La operacion fue guardada pero el inventario puede quedar en negativo.';
 
   static String msjAjusteStock(double cantidad, String unidad) =>
       'Stock actualizado: ${cantidad.toStringAsFixed(1)} $unidad.';
@@ -99,5 +95,6 @@ class AppMessages {
       'Reporte PDF generado y guardado en $ruta.';
 
   static String msjBackupGuardado(String ruta) =>
-      'Copia de seguridad generada en $ruta. Este archivo contiene informacion sensible; no lo comparta con terceros.';
+      'Copia de seguridad generada en $ruta. '
+      'Este archivo contiene informacion sensible; no lo comparta con terceros.';
 }

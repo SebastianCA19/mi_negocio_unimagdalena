@@ -30,7 +30,32 @@ class BackupInfo {
 }
 
 class BackupService {
-  static const List<String> _tablas = AppConstants.tablas;
+  /// Orden topológico: cada tabla aparece DESPUÉS de todas las tablas
+  /// a las que referencia con FK. Esto garantiza que al restaurar no
+  /// se violen restricciones de integridad referencial.
+  ///
+  /// unidades_medida  → sin dependencias
+  /// sesion           → sin dependencias
+  /// proveedores      → sin dependencias
+  /// productos        → depende de unidades_medida
+  /// insumos_producto → depende de productos
+  /// compras          → depende de proveedores
+  /// compra_items     → depende de compras, productos, unidades_medida
+  /// ventas           → sin dependencias externas
+  /// venta_items      → depende de ventas, productos
+  /// ajustes_inventario → depende de productos
+  static const List<String> _tablasOrdenadas = [
+    'unidades_medida',
+    'sesion',
+    'proveedores',
+    'productos',
+    'insumos_producto',
+    'compras',
+    'compra_items',
+    'ventas',
+    'venta_items',
+    'ajustes_inventario',
+  ];
 
   // ── Último backup ─────────────────────────────────────────────────────────
 
@@ -70,18 +95,18 @@ class BackupService {
         '${AppConstants.backupPrefix}_$timestamp${AppConstants.backupExtension}';
     final archivo = File(join(carpeta, nombreArchivo));
 
-    // 3. Exportar cada tabla como lista de maps
+    // 3. Exportar cada tabla en orden topológico
     final db = await AppDatabase.instance.database;
     final Map<String, List<Map<String, dynamic>>> datos = {};
 
-    for (int i = 0; i < _tablas.length; i++) {
-      final tabla = _tablas[i];
+    for (int i = 0; i < _tablasOrdenadas.length; i++) {
+      final tabla = _tablasOrdenadas[i];
       try {
         datos[tabla] = await db.query(tabla);
       } catch (_) {
         datos[tabla] = [];
       }
-      onProgreso?.call((i + 1) / _tablas.length * 0.9);
+      onProgreso?.call((i + 1) / _tablasOrdenadas.length * 0.9);
     }
 
     // 4. Escribir JSON
@@ -104,29 +129,51 @@ class BackupService {
   // ── Restaurar backup ──────────────────────────────────────────────────────
 
   /// Restaura la base de datos desde un archivo .mnbak.
-  /// Llama [onProgreso] con valores entre 0.0 y 1.0.
+  ///
+  /// El proceso:
+  /// 1. Deshabilita FK temporalmente para poder truncar y reinsertar.
+  /// 2. Recrea el schema limpio con [deleteAndRecreate].
+  /// 3. Inserta las tablas en orden topológico, ignorando las que no
+  ///    existan en el JSON (backups de versiones anteriores).
+  /// 4. Llama [onProgreso] con valores entre 0.0 y 1.0.
   Future<void> restaurarBackup(
     File archivo, {
     void Function(double progreso)? onProgreso,
   }) async {
     onProgreso?.call(0.0);
 
+    // Leer y parsear el JSON
     final contenido = await archivo.readAsString(encoding: utf8);
     onProgreso?.call(0.1);
 
     final Map<String, dynamic> raw = jsonDecode(contenido);
     onProgreso?.call(0.2);
 
+    // Recrear el schema vacío (DROP + CREATE)
     await AppDatabase.instance.deleteAndRecreate();
     onProgreso?.call(0.35);
 
     final db = await AppDatabase.instance.database;
 
+    // Insertar en orden topológico para respetar las FK.
+    // Si el JSON viene de una versión anterior y no tiene alguna tabla,
+    // simplemente se omite.
     await db.transaction((txn) async {
-      final tablas = raw.keys.toList();
-      for (int i = 0; i < tablas.length; i++) {
-        final tabla = tablas[i];
+      // Deshabilitar FK durante la carga masiva para mayor robustez;
+      // se vuelve a habilitar al terminar la transacción.
+      await txn.execute('PRAGMA foreign_keys = OFF');
+
+      for (int i = 0; i < _tablasOrdenadas.length; i++) {
+        final tabla = _tablasOrdenadas[i];
+
+        // Omitir tablas que no vengan en el backup
+        if (!raw.containsKey(tabla)) {
+          onProgreso?.call(0.35 + (i + 1) / _tablasOrdenadas.length * 0.65);
+          continue;
+        }
+
         final List<dynamic> filas = raw[tabla] as List<dynamic>? ?? [];
+
         for (final fila in filas) {
           try {
             await txn.insert(
@@ -135,11 +182,14 @@ class BackupService {
               conflictAlgorithm: ConflictAlgorithm.replace,
             );
           } catch (_) {
-            // Ignorar filas que violen restricciones (datos corruptos)
+            // Ignorar filas individuales corruptas y continuar
           }
         }
-        onProgreso?.call(0.35 + (i + 1) / tablas.length * 0.65);
+
+        onProgreso?.call(0.35 + (i + 1) / _tablasOrdenadas.length * 0.65);
       }
+
+      await txn.execute('PRAGMA foreign_keys = ON');
     });
 
     onProgreso?.call(1.0);
