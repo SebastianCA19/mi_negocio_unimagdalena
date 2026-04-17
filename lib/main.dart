@@ -8,6 +8,7 @@ import 'features/auth/auth_provider.dart';
 import 'features/inventory/inventory_provider.dart';
 import 'features/procurement/compra_provider.dart';
 import 'features/sales/venta_provider.dart';
+import 'features/accounting/finanzas_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,6 +21,7 @@ Future<void> main() async {
         ChangeNotifierProvider(create: (_) => InventoryProvider()),
         ChangeNotifierProvider(create: (_) => CompraProvider()),
         ChangeNotifierProvider(create: (_) => VentaProvider()),
+        ChangeNotifierProvider(create: (_) => FinanzasProvider()),
       ],
       child: const MyApp(),
     ),
