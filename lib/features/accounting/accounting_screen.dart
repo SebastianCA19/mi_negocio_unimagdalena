@@ -339,7 +339,7 @@ class _SelectorMes extends StatelessWidget {
                 constraints: const BoxConstraints(),
               ),
               Text(
-                AppFormatters.nombreMes(mes),
+                AppFormatters.nombreMes(mes).toUpperCase(),
                 style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w700,

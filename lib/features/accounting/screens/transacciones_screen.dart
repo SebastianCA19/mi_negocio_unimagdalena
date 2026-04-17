@@ -26,7 +26,8 @@ class TransaccionesScreen extends StatelessWidget {
       child: Scaffold(
         backgroundColor: AppTheme.surfaceColor,
         appBar: AppBar(
-          title: Text('Transacciones · ${AppFormatters.nombreMes(mes)}'),
+          title: Text(
+              'Transacciones · ${AppFormatters.nombreMes(mes).toUpperCase()}'),
           bottom: const TabBar(
             indicatorColor: Colors.white,
             labelColor: Colors.white,
