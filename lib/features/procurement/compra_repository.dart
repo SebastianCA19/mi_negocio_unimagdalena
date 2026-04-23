@@ -93,7 +93,6 @@ class CompraRepository {
       args.isNotEmpty ? args : null,
     );
 
-    // Cargar items con su total para mostrar en listado
     final compras = <Compra>[];
     for (final map in maps) {
       final compra = Compra.fromMap(map);
@@ -168,14 +167,12 @@ class CompraRepository {
 
   Future<void> deleteCompra(int id) async {
     final db = await _db.database;
-    // CASCADE borra los compra_items automáticamente
     await db.delete('compras', where: 'id = ?', whereArgs: [id]);
   }
 
   Future<double> getTotalGastadoPeriodo(
       String fechaDesde, String fechaHasta) async {
     final db = await _db.database;
-    // El total se calcula sumando cantidad * precio_unitario de los items
     final result = await db.rawQuery(
       '''
       SELECT COALESCE(SUM(ci.cantidad * ci.precio_unitario), 0) AS suma

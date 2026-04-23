@@ -86,8 +86,6 @@ class VentaRepository {
 
   /// Inserta la venta con sus items en una transacción atómica
   /// y descuenta el stock de cada producto vendido.
-  /// Retorna un mapa con las alertas de stock insuficiente:
-  ///   { productoNombre: cantidadDisponible }
   Future<({int ventaId, Map<String, double> alertasStock})> insertVenta(
     Venta venta,
     List<VentaItem> items,
@@ -107,7 +105,6 @@ class VentaRepository {
         itemMap.remove('id');
         await txn.insert('venta_items', itemMap);
 
-        // Descontar stock
         final prodMaps = await txn.query(
           'productos',
           columns: ['stock_actual', 'nombre'],
@@ -144,7 +141,6 @@ class VentaRepository {
     final db = await _db.database;
     await db.transaction((txn) async {
       if (restituirStock) {
-        // Leer items antes de que el CASCADE los borre
         final itemMaps = await txn.query(
           'venta_items',
           where: 'venta_id = ?',
@@ -173,7 +169,6 @@ class VentaRepository {
           }
         }
       }
-      // CASCADE borra los venta_items automáticamente
       await txn.delete('ventas', where: 'id = ?', whereArgs: [id]);
     });
   }

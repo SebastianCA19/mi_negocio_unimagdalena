@@ -31,10 +31,9 @@ class Proveedor {
 class Compra {
   final int? id;
   final int proveedorId;
-  final Proveedor? proveedor; // join opcional
+  final Proveedor? proveedor;
   final String fechaCompra;
   final String metodoPago;
-  final String? imagenPath;
   final String? fechaRegistro;
 
   List<CompraItem> items;
@@ -45,12 +44,9 @@ class Compra {
     this.proveedor,
     required this.fechaCompra,
     required this.metodoPago,
-    this.imagenPath,
     this.fechaRegistro,
     this.items = const [],
   });
-
-  bool get hasImage => imagenPath != null && imagenPath!.isNotEmpty;
 
   /// Total calculado desde los items (cantidad * precio_unitario).
   double get total => items.fold(
@@ -71,7 +67,6 @@ class Compra {
           : null,
       fechaCompra: map['fecha_compra'] as String,
       metodoPago: map['metodo_pago'] as String,
-      imagenPath: map['imagen_path'] as String?,
       fechaRegistro: map['fecha_registro'] as String?,
     );
   }
@@ -82,7 +77,6 @@ class Compra {
       'proveedor_id': proveedorId,
       'fecha_compra': fechaCompra,
       'metodo_pago': metodoPago,
-      'imagen_path': imagenPath,
       'fecha_registro': fechaRegistro,
     };
   }
@@ -93,7 +87,6 @@ class Compra {
     Proveedor? proveedor,
     String? fechaCompra,
     String? metodoPago,
-    String? imagenPath,
     String? fechaRegistro,
     List<CompraItem>? items,
   }) {
@@ -103,7 +96,6 @@ class Compra {
       proveedor: proveedor ?? this.proveedor,
       fechaCompra: fechaCompra ?? this.fechaCompra,
       metodoPago: metodoPago ?? this.metodoPago,
-      imagenPath: imagenPath ?? this.imagenPath,
       fechaRegistro: fechaRegistro ?? this.fechaRegistro,
       items: items ?? this.items,
     );
@@ -118,7 +110,6 @@ class CompraItem {
   final int productoId;
   final int unidadMedidaId;
 
-  // Joins opcionales
   final String? productoNombre;
   final String? unidadNombre;
   final String? unidadAbreviatura;
@@ -138,7 +129,6 @@ class CompraItem {
     required this.precioUnitario,
   });
 
-  /// Calculado, no almacenado.
   double get subtotal => cantidad * precioUnitario;
 
   String get unidadDisplay => unidadAbreviatura ?? unidadNombre ?? '';

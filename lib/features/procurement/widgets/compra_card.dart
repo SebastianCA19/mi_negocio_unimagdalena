@@ -86,9 +86,6 @@ class CompraCard extends StatelessWidget {
                           const SizedBox(width: 10),
                           _MetodoBadge(metodo: compra.metodoPago),
                           const Spacer(),
-                          if (compra.hasImage)
-                            const Icon(Icons.attach_file_rounded,
-                                size: 16, color: AppTheme.textSecondary),
                         ],
                       ),
 

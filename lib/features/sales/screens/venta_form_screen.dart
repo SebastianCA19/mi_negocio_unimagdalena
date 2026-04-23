@@ -1,6 +1,4 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/util/app_constants.dart';
@@ -20,25 +18,16 @@ class VentaFormScreen extends StatefulWidget {
 }
 
 class _VentaFormScreenState extends State<VentaFormScreen> {
-  // Cliente / notas
   final _notasCtrl = TextEditingController();
 
-  // Detalle
   DateTime _fechaVenta = DateTime.now();
   String _metodoPago = AppConstants.metodosPago.first;
 
-  // Items
   final List<_ItemEditable> _items = [];
-
-  // Adjunto (solo si pago no es efectivo — RF-VNT02)
-  File? _comprobanteFile;
-  bool _loadingImg = false;
 
   bool _isLoading = false;
 
   double get _total => _items.fold(0, (sum, item) => sum + item.subtotal);
-
-  bool get _requiereComprobante => _metodoPago.toLowerCase() != 'efectivo';
 
   @override
   void initState() {
@@ -56,82 +45,6 @@ class _VentaFormScreenState extends State<VentaFormScreen> {
       item.dispose();
     }
     super.dispose();
-  }
-
-  // ── Imagen ────────────────────────────────────
-
-  Future<void> _adjuntarImagen(ImageSource source) async {
-    setState(() => _loadingImg = true);
-    try {
-      final picker = ImagePicker();
-      final picked = await picker.pickImage(source: source, imageQuality: 80);
-      if (picked != null) {
-        setState(() => _comprobanteFile = File(picked.path));
-      }
-    } catch (_) {
-      if (mounted) {
-        AppSnackBar.error(context, 'No se pudo cargar la imagen.');
-      }
-    } finally {
-      if (mounted) setState(() => _loadingImg = false);
-    }
-  }
-
-  void _mostrarOpcionesImagen() {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const CircleAvatar(
-                  backgroundColor: AppTheme.primaryLighter,
-                  child: Icon(Icons.camera_alt_outlined,
-                      color: AppTheme.primaryColor),
-                ),
-                title: const Text('Tomar foto'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _adjuntarImagen(ImageSource.camera);
-                },
-              ),
-              ListTile(
-                leading: const CircleAvatar(
-                  backgroundColor: AppTheme.primaryLighter,
-                  child: Icon(Icons.photo_library_outlined,
-                      color: AppTheme.primaryColor),
-                ),
-                title: const Text('Elegir de la galería'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _adjuntarImagen(ImageSource.gallery);
-                },
-              ),
-              if (_comprobanteFile != null)
-                ListTile(
-                  leading: const CircleAvatar(
-                    backgroundColor: AppTheme.errorLight,
-                    child:
-                        Icon(Icons.delete_outline, color: AppTheme.errorColor),
-                  ),
-                  title: const Text('Quitar adjunto',
-                      style: TextStyle(color: AppTheme.errorColor)),
-                  onTap: () {
-                    Navigator.pop(context);
-                    setState(() => _comprobanteFile = null);
-                  },
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 
   // ── Items ─────────────────────────────────────
@@ -170,12 +83,6 @@ class _VentaFormScreenState extends State<VentaFormScreen> {
       }
     }
 
-    // RF-VNT02: aviso si pago no es efectivo y no hay comprobante
-    if (_requiereComprobante && _comprobanteFile == null) {
-      final continuar = await _mostrarAvisoSinComprobante();
-      if (!continuar) return;
-    }
-
     setState(() => _isLoading = true);
 
     final now = AppFormatters.dateTimeToDb(DateTime.now());
@@ -185,7 +92,6 @@ class _VentaFormScreenState extends State<VentaFormScreen> {
           _notasCtrl.text.trim().isEmpty ? null : _notasCtrl.text.trim(),
       fechaVenta: AppFormatters.dateToDb(_fechaVenta),
       metodoPago: _metodoPago,
-      imagenPath: _comprobanteFile?.path,
       fechaRegistro: now,
     );
 
@@ -208,7 +114,6 @@ class _VentaFormScreenState extends State<VentaFormScreen> {
       if (result.error != null) {
         AppSnackBar.error(context, result.error!);
       } else {
-        // RF-VNT03: mostrar alertas de stock insuficiente (no bloquea)
         if (result.alertasStock.isNotEmpty && mounted) {
           _mostrarAlertasStock(result.alertasStock);
         } else {
@@ -217,32 +122,6 @@ class _VentaFormScreenState extends State<VentaFormScreen> {
         }
       }
     }
-  }
-
-  Future<bool> _mostrarAvisoSinComprobante() async {
-    final continuar = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Sin comprobante', style: AppTextStyles.heading3),
-        content: Text(
-          'El método de pago "$_metodoPago" generalmente requiere comprobante. '
-          '¿Deseas guardar la venta sin adjuntar uno?',
-          style: AppTextStyles.body,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Guardar sin comprobante',
-                style: TextStyle(color: AppTheme.warningColor)),
-          ),
-        ],
-      ),
-    );
-    return continuar ?? false;
   }
 
   void _mostrarAlertasStock(Map<String, double> alertas) {
@@ -317,7 +196,6 @@ class _VentaFormScreenState extends State<VentaFormScreen> {
       ),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setModal) {
-          // Solo productos terminados (los que se venden)
           final filtrados = inv.productos
               .where((p) =>
                   !p.esMateriaPrima &&
@@ -403,12 +281,10 @@ class _VentaFormScreenState extends State<VentaFormScreen> {
                                       ),
                                     ),
                                     if (p.precioVenta != null) ...[
-                                      const Text(
-                                        '  ·  ',
-                                        style: TextStyle(
-                                            color: AppTheme.textSecondary,
-                                            fontSize: 12),
-                                      ),
+                                      const Text('  ·  ',
+                                          style: TextStyle(
+                                              color: AppTheme.textSecondary,
+                                              fontSize: 12)),
                                       Text(
                                         AppFormatters.formatMoneda(
                                             p.precioVenta!),
@@ -441,7 +317,6 @@ class _VentaFormScreenState extends State<VentaFormScreen> {
     if (result is Producto) {
       setState(() {
         _items[index].producto = result;
-        // Pre-poblar precio con el precio de venta del producto si existe
         if (result.precioVenta != null) {
           _items[index].precioCtrl.text =
               result.precioVenta!.toStringAsFixed(0);
@@ -513,7 +388,6 @@ class _VentaFormScreenState extends State<VentaFormScreen> {
             icon: Icons.description_outlined,
             title: 'Detalle',
             children: [
-              // Fecha
               const Text('FECHA DE VENTA', style: AppTextStyles.label),
               const SizedBox(height: 6),
               GestureDetector(
@@ -558,7 +432,6 @@ class _VentaFormScreenState extends State<VentaFormScreen> {
               ),
               const SizedBox(height: 14),
 
-              // Método de pago
               const Text('MÉTODO DE PAGO', style: AppTextStyles.label),
               const SizedBox(height: 6),
               DropdownButtonFormField<String>(
@@ -567,41 +440,8 @@ class _VentaFormScreenState extends State<VentaFormScreen> {
                 items: AppConstants.metodosPago
                     .map((m) => DropdownMenuItem(value: m, child: Text(m)))
                     .toList(),
-                onChanged: (v) => setState(() {
-                  _metodoPago = v!;
-                  // Quitar comprobante si cambia a efectivo
-                  if (v.toLowerCase() == 'efectivo') {
-                    _comprobanteFile = null;
-                  }
-                }),
+                onChanged: (v) => setState(() => _metodoPago = v!),
               ),
-
-              // Aviso comprobante para métodos distintos de efectivo
-              if (_requiereComprobante) ...[
-                const SizedBox(height: 10),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: AppTheme.warningLight,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.info_outline,
-                          color: AppTheme.warningColor, size: 16),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Se recomienda adjuntar el comprobante de $_metodoPago.',
-                          style: const TextStyle(
-                              fontSize: 12, color: AppTheme.warningColor),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
             ],
           ),
           const SizedBox(height: 12),
@@ -718,28 +558,6 @@ class _VentaFormScreenState extends State<VentaFormScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 12),
-
-          // ── Comprobante adjunto ───────────────────
-          _SeccionCard(
-            icon: Icons.attach_file_rounded,
-            title: _requiereComprobante
-                ? 'Comprobante de pago (recomendado)'
-                : 'Comprobante (opcional)',
-            children: [
-              _comprobanteFile != null
-                  ? _ImagenPreview(
-                      imagen: _comprobanteFile!,
-                      onCambiar: _mostrarOpcionesImagen,
-                      onEliminar: () => setState(() => _comprobanteFile = null),
-                    )
-                  : _AreaAdjunto(
-                      isLoading: _loadingImg,
-                      esRequerido: _requiereComprobante,
-                      onTap: _mostrarOpcionesImagen,
-                    ),
-            ],
-          ),
           const SizedBox(height: 24),
 
           AppButton(
@@ -786,7 +604,6 @@ class _ItemRow extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Selector de producto + eliminar
           Row(
             children: [
               Expanded(
@@ -862,7 +679,6 @@ class _ItemRow extends StatelessWidget {
           ),
           const SizedBox(height: 10),
 
-          // Cantidad + precio
           Row(
             children: [
               Expanded(
@@ -885,7 +701,6 @@ class _ItemRow extends StatelessWidget {
           ),
           const SizedBox(height: 8),
 
-          // Subtotal
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
@@ -1048,143 +863,6 @@ class _MiniField extends StatelessWidget {
           style: const TextStyle(fontSize: 13),
         ),
       ],
-    );
-  }
-}
-
-class _AreaAdjunto extends StatelessWidget {
-  final bool isLoading;
-  final bool esRequerido;
-  final VoidCallback onTap;
-
-  const _AreaAdjunto({
-    required this.isLoading,
-    required this.esRequerido,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: isLoading ? null : onTap,
-      child: Container(
-        width: double.infinity,
-        height: 110,
-        decoration: BoxDecoration(
-          border: Border.all(
-            color: esRequerido
-                ? AppTheme.warningColor.withValues(alpha: 0.6)
-                : AppTheme.primaryLight.withValues(alpha: 0.5),
-            width: 1.5,
-          ),
-          borderRadius: BorderRadius.circular(12),
-          color: esRequerido
-              ? AppTheme.warningLight.withValues(alpha: 0.4)
-              : AppTheme.primaryLighter.withValues(alpha: 0.3),
-        ),
-        child: isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.camera_alt_outlined,
-                      size: 28,
-                      color: esRequerido
-                          ? AppTheme.warningColor
-                          : AppTheme.primaryLight.withValues(alpha: 0.8)),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Adjuntar comprobante',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: esRequerido
-                          ? AppTheme.warningColor
-                          : AppTheme.primaryLight,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  const Text(
-                    'Sube una foto del comprobante de pago',
-                    style:
-                        TextStyle(fontSize: 12, color: AppTheme.textSecondary),
-                  ),
-                ],
-              ),
-      ),
-    );
-  }
-}
-
-class _ImagenPreview extends StatelessWidget {
-  final File imagen;
-  final VoidCallback onCambiar;
-  final VoidCallback onEliminar;
-
-  const _ImagenPreview({
-    required this.imagen,
-    required this.onCambiar,
-    required this.onEliminar,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: Image.file(
-            imagen,
-            width: double.infinity,
-            height: 160,
-            fit: BoxFit.cover,
-          ),
-        ),
-        Positioned(
-          top: 8,
-          right: 8,
-          child: Row(
-            children: [
-              _BtnImagen(
-                  icon: Icons.edit,
-                  onTap: onCambiar,
-                  color: AppTheme.primaryColor),
-              const SizedBox(width: 6),
-              _BtnImagen(
-                  icon: Icons.delete_outline,
-                  onTap: onEliminar,
-                  color: AppTheme.errorColor),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _BtnImagen extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-  final Color color;
-
-  const _BtnImagen(
-      {required this.icon, required this.onTap, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(6),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4)
-          ],
-        ),
-        child: Icon(icon, size: 16, color: color),
-      ),
     );
   }
 }

@@ -29,9 +29,6 @@ class AppDatabase {
 
   Future<void> _onCreate(Database db, int version) async {
     // ── Sesion del usuario autenticado ──────────────────────────────────────
-    // correo: correo institucional verificado.
-    // nombre / apellido: obtenidos del proveedor de identidad institucional
-    // (o hardcodeados durante la simulacion de login).
     await db.execute('''
       CREATE TABLE sesion (
         id                INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -45,9 +42,6 @@ class AppDatabase {
     ''');
 
     // ── Unidades de medida ───────────────────────────────────────────────────
-    // factor_base expresa cuantas unidades base equivale 1 de esta unidad.
-    // Ejemplo: 1 kg = 1000 g → factor_base(kg) = 1000, factor_base(g) = 1.
-    // Todas las unidades de la misma categoria deben usar la misma base.
     await db.execute('''
       CREATE TABLE unidades_medida (
         id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -69,8 +63,6 @@ class AppDatabase {
     ''');
 
     // ── Productos del inventario ─────────────────────────────────────────────
-    // es_materia_prima = 1  → materia prima
-    // es_materia_prima = 0  → producto terminado
     await db.execute('''
       CREATE TABLE productos (
         id               INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -86,9 +78,6 @@ class AppDatabase {
     ''');
 
     // ── Insumos por producto (receta de produccion) ──────────────────────────
-    // producto_id → producto terminado que se produce
-    // insumo_id   → producto (materia prima) que se consume al producir
-    // La cantidad se expresa en la unidad de medida propia del insumo.
     await db.execute('''
       CREATE TABLE insumos_producto (
         id                  INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -108,7 +97,6 @@ class AppDatabase {
         proveedor_id   INTEGER NOT NULL,
         fecha_compra   TEXT    NOT NULL,
         metodo_pago    TEXT    NOT NULL,
-        imagen_path    TEXT,
         fecha_registro TEXT    NOT NULL,
         FOREIGN KEY (proveedor_id) REFERENCES proveedores(id)
           ON DELETE RESTRICT
@@ -137,7 +125,6 @@ class AppDatabase {
         notas_cliente  TEXT,
         fecha_venta    TEXT NOT NULL,
         metodo_pago    TEXT NOT NULL,
-        imagen_path    TEXT,
         fecha_registro TEXT NOT NULL
       )
     ''');
@@ -156,7 +143,6 @@ class AppDatabase {
     ''');
 
     // ── Ajustes manuales de inventario ───────────────────────────────────────
-    // tipo: 'Aumento' | 'Disminucion'
     await db.execute('''
       CREATE TABLE ajustes_inventario (
         id           INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -189,12 +175,6 @@ class AppDatabase {
   }
 
   Future<void> _insertarUnidadesBase(DatabaseExecutor db) async {
-    // Conversion: valor_en_base = cantidad * factor_base
-    //
-    // Masa     → gramo  (g)    como unidad base
-    // Volumen  → mililitro (mL) como unidad base
-    // Longitud → centimetro (cm) como unidad base
-    // Cantidad → unidad (ud)   como unidad base
     const rows = [
       // Cantidad
       ('Unidad', 'ud', 1.0),
@@ -220,16 +200,12 @@ class AppDatabase {
     }
   }
 
-  // ── Utilitarios ──────────────────────────────────────────────────────────────
-
-  /// Cierra la conexion. Debe llamarse solo al cerrar la aplicacion.
   Future<void> close() async {
     final db = await instance.database;
     await db.close();
     _database = null;
   }
 
-  /// Elimina y recrea toda la base de datos (usado en restauracion de backup).
   Future<void> deleteAndRecreate() async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, 'mi_negocio.db');

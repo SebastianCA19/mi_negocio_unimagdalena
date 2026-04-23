@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_theme.dart';
@@ -239,48 +238,6 @@ class _CompraDetalleScreenState extends State<CompraDetalleScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 12),
-          ],
-
-          // ── Factura adjunta ───────────────────────
-          if (c.hasImage) ...[
-            const Text('Factura adjunta', style: AppTextStyles.heading3),
-            const SizedBox(height: 8),
-            Card(
-              child: InkWell(
-                onTap: () => _verImagenCompleta(context, c.imagenPath!),
-                borderRadius: BorderRadius.circular(12),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.file(
-                    File(c.imagenPath!),
-                    width: double.infinity,
-                    height: 200,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      height: 80,
-                      alignment: Alignment.center,
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.broken_image_outlined,
-                              color: AppTheme.textSecondary),
-                          SizedBox(width: 8),
-                          Text('Imagen no disponible',
-                              style: AppTextStyles.bodySecondary),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              'Toca la imagen para verla en pantalla completa',
-              style: AppTextStyles.label,
-              textAlign: TextAlign.center,
-            ),
           ],
 
           const SizedBox(height: 80),
@@ -291,15 +248,6 @@ class _CompraDetalleScreenState extends State<CompraDetalleScreen> {
 
   String _fmt(double v) =>
       v == v.truncateToDouble() ? v.toInt().toString() : v.toStringAsFixed(1);
-
-  void _verImagenCompleta(BuildContext context, String path) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => _VisorImagen(imagePath: path),
-      ),
-    );
-  }
 
   Future<void> _confirmarEliminar(BuildContext context) async {
     final confirmar = await ConfirmDialog.show(
@@ -323,30 +271,6 @@ class _CompraDetalleScreenState extends State<CompraDetalleScreen> {
         }
       }
     }
-  }
-}
-
-// ── Visor imagen pantalla completa ────────────────────────────────────────────
-
-class _VisorImagen extends StatelessWidget {
-  final String imagePath;
-  const _VisorImagen({required this.imagePath});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-        title: const Text('Factura'),
-      ),
-      body: Center(
-        child: InteractiveViewer(
-          child: Image.file(File(imagePath)),
-        ),
-      ),
-    );
   }
 }
 

@@ -1,6 +1,4 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/util/app_constants.dart';
@@ -33,10 +31,6 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
   // Items
   final List<_ItemEditable> _items = [];
 
-  // Adjunto
-  File? _imagenFile;
-  bool _loadingImg = false;
-
   bool _isLoading = false;
 
   double get _total => _items.fold(0, (sum, item) => sum + item.subtotal);
@@ -56,80 +50,6 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
       item.dispose();
     }
     super.dispose();
-  }
-
-  // ── Imagen ────────────────────────────────────
-
-  Future<void> _adjuntarImagen(ImageSource source) async {
-    setState(() => _loadingImg = true);
-    try {
-      final picker = ImagePicker();
-      final picked = await picker.pickImage(source: source, imageQuality: 80);
-      if (picked != null) {
-        setState(() => _imagenFile = File(picked.path));
-      }
-    } catch (_) {
-      if (mounted) AppSnackBar.error(context, 'No se pudo cargar la imagen.');
-    } finally {
-      if (mounted) setState(() => _loadingImg = false);
-    }
-  }
-
-  void _mostrarOpcionesImagen() {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const CircleAvatar(
-                  backgroundColor: AppTheme.primaryLighter,
-                  child: Icon(Icons.camera_alt_outlined,
-                      color: AppTheme.primaryColor),
-                ),
-                title: const Text('Tomar foto'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _adjuntarImagen(ImageSource.camera);
-                },
-              ),
-              ListTile(
-                leading: const CircleAvatar(
-                  backgroundColor: AppTheme.primaryLighter,
-                  child: Icon(Icons.photo_library_outlined,
-                      color: AppTheme.primaryColor),
-                ),
-                title: const Text('Elegir de la galería'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _adjuntarImagen(ImageSource.gallery);
-                },
-              ),
-              if (_imagenFile != null)
-                ListTile(
-                  leading: const CircleAvatar(
-                    backgroundColor: AppTheme.errorLight,
-                    child:
-                        Icon(Icons.delete_outline, color: AppTheme.errorColor),
-                  ),
-                  title: const Text('Quitar adjunto',
-                      style: TextStyle(color: AppTheme.errorColor)),
-                  onTap: () {
-                    Navigator.pop(context);
-                    setState(() => _imagenFile = null);
-                  },
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 
   // ── Items ─────────────────────────────────────
@@ -188,7 +108,6 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
       proveedor: _proveedorSeleccionado,
       fechaCompra: AppFormatters.dateToDb(_fechaCompra),
       metodoPago: _metodoPago,
-      imagenPath: _imagenFile?.path,
       fechaRegistro: now,
     );
 
@@ -328,7 +247,6 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
     if (result is Producto) {
       setState(() {
         _items[index].producto = result;
-        // Pre-seleccionar unidad del producto
         _items[index].unidad = result.unidadMedida;
       });
     } else if (result is String && result.startsWith('create:')) {
@@ -567,25 +485,6 @@ class _CompraFormScreenState extends State<CompraFormScreen> {
                 ],
               ),
             ),
-          ),
-          const SizedBox(height: 12),
-
-          // ── Adjunto ───────────────────────────────
-          _SeccionCard(
-            icon: Icons.attach_file_rounded,
-            title: 'Adjunto (opcional)',
-            children: [
-              _imagenFile != null
-                  ? _ImagenPreview(
-                      imagen: _imagenFile!,
-                      onCambiar: _mostrarOpcionesImagen,
-                      onEliminar: () => setState(() => _imagenFile = null),
-                    )
-                  : _AreaAdjunto(
-                      isLoading: _loadingImg,
-                      onTap: _mostrarOpcionesImagen,
-                    ),
-            ],
           ),
           const SizedBox(height: 24),
 
@@ -907,130 +806,6 @@ class _MiniField extends StatelessWidget {
           style: const TextStyle(fontSize: 13),
         ),
       ],
-    );
-  }
-}
-
-class _AreaAdjunto extends StatelessWidget {
-  final bool isLoading;
-  final VoidCallback onTap;
-
-  const _AreaAdjunto({required this.isLoading, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: isLoading ? null : onTap,
-      child: Container(
-        width: double.infinity,
-        height: 110,
-        decoration: BoxDecoration(
-          border: Border.all(
-            color: AppTheme.primaryLight.withValues(alpha: 0.5),
-            width: 1.5,
-          ),
-          borderRadius: BorderRadius.circular(12),
-          color: AppTheme.primaryLighter.withValues(alpha: 0.3),
-        ),
-        child: isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.camera_alt_outlined,
-                      size: 28,
-                      color: AppTheme.primaryLight.withValues(alpha: 0.8)),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Adjuntar factura',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.primaryLight,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  const Text(
-                    'Sube una foto del comprobante físico',
-                    style:
-                        TextStyle(fontSize: 12, color: AppTheme.textSecondary),
-                  ),
-                ],
-              ),
-      ),
-    );
-  }
-}
-
-class _ImagenPreview extends StatelessWidget {
-  final File imagen;
-  final VoidCallback onCambiar;
-  final VoidCallback onEliminar;
-
-  const _ImagenPreview({
-    required this.imagen,
-    required this.onCambiar,
-    required this.onEliminar,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: Image.file(
-            imagen,
-            width: double.infinity,
-            height: 160,
-            fit: BoxFit.cover,
-          ),
-        ),
-        Positioned(
-          top: 8,
-          right: 8,
-          child: Row(
-            children: [
-              _BtnImagen(
-                  icon: Icons.edit,
-                  onTap: onCambiar,
-                  color: AppTheme.primaryColor),
-              const SizedBox(width: 6),
-              _BtnImagen(
-                  icon: Icons.delete_outline,
-                  onTap: onEliminar,
-                  color: AppTheme.errorColor),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _BtnImagen extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-  final Color color;
-
-  const _BtnImagen(
-      {required this.icon, required this.onTap, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(6),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4)
-          ],
-        ),
-        child: Icon(icon, size: 16, color: color),
-      ),
     );
   }
 }

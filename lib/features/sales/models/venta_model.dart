@@ -3,7 +3,6 @@ class Venta {
   final String? notasCliente;
   final String fechaVenta;
   final String metodoPago;
-  final String? imagenPath;
   final String? fechaRegistro;
 
   List<VentaItem> items;
@@ -13,12 +12,9 @@ class Venta {
     this.notasCliente,
     required this.fechaVenta,
     required this.metodoPago,
-    this.imagenPath,
     this.fechaRegistro,
     this.items = const [],
   });
-
-  bool get hasImage => imagenPath != null && imagenPath!.isNotEmpty;
 
   /// Total calculado desde los items (cantidad * precio_unitario).
   double get total => items.fold(
@@ -32,7 +28,6 @@ class Venta {
       notasCliente: map['notas_cliente'] as String?,
       fechaVenta: map['fecha_venta'] as String,
       metodoPago: map['metodo_pago'] as String,
-      imagenPath: map['imagen_path'] as String?,
       fechaRegistro: map['fecha_registro'] as String?,
     );
   }
@@ -43,7 +38,6 @@ class Venta {
       'notas_cliente': notasCliente,
       'fecha_venta': fechaVenta,
       'metodo_pago': metodoPago,
-      'imagen_path': imagenPath,
       'fecha_registro': fechaRegistro,
     };
   }
@@ -53,7 +47,6 @@ class Venta {
     String? notasCliente,
     String? fechaVenta,
     String? metodoPago,
-    String? imagenPath,
     String? fechaRegistro,
     List<VentaItem>? items,
   }) {
@@ -62,7 +55,6 @@ class Venta {
       notasCliente: notasCliente ?? this.notasCliente,
       fechaVenta: fechaVenta ?? this.fechaVenta,
       metodoPago: metodoPago ?? this.metodoPago,
-      imagenPath: imagenPath ?? this.imagenPath,
       fechaRegistro: fechaRegistro ?? this.fechaRegistro,
       items: items ?? this.items,
     );
@@ -76,7 +68,6 @@ class VentaItem {
   final int ventaId;
   final int productoId;
 
-  // Joins opcionales
   final String? productoNombre;
   final String? unidadAbreviatura;
 
@@ -93,7 +84,6 @@ class VentaItem {
     required this.precioUnitario,
   });
 
-  /// Calculado, no almacenado.
   double get subtotal => cantidad * precioUnitario;
 
   String get unidadDisplay => unidadAbreviatura ?? '';
