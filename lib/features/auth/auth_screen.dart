@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/util/app_constants.dart';
 import '../../core/widgets/app_widgets.dart';
+import '../../core/widgets/app_loading_widgets.dart'; // <-- nuevo
 import 'auth_provider.dart';
 
 class AuthScreen extends StatefulWidget {
@@ -37,24 +38,17 @@ class _AuthScreenState extends State<AuthScreen> {
 
     final correo = _correoController.text.trim();
 
-    // TODO: reemplazar con llamada real a la API institucional.
-    // La respuesta real debería incluir nombre y apellido del estudiante.
-    // Ejemplo:
-    // final response = await http.post(...);
-    // final data = jsonDecode(response.body);
-    // final nombre = data['nombre'];
-    // final apellido = data['apellido'];
-
     if (AuthProvider.esCorreoValido(correo)) {
       if (mounted) {
-        // SIMULACIÓN: nombre y apellido hardcodeados.
-        // Cuando el login sea real, estos valores vendrán de la API.
         await context.read<AuthProvider>().guardarSesion(
               correo,
               nombre: 'Juan David',
               apellido: 'Delgado',
             );
-        AppSnackBar.success(context, AppMessages.msjSesionOk);
+        // El router redirige automáticamente; el snackbar es opcional
+        if (mounted) {
+          AppSnackBar.success(context, AppMessages.msjSesionOk);
+        }
       }
     } else {
       setState(() => _errorMensaje = AppMessages.msjCorreoInvalido);
@@ -68,139 +62,149 @@ class _AuthScreenState extends State<AuthScreen> {
     return Scaffold(
       resizeToAvoidBottomInset: false,
       backgroundColor: AppTheme.primaryColor,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // ── Header ───────────────────────────────
-            Expanded(
-              flex: 2,
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Image.asset(
-                          'assets/images/icon_no_bg.png',
-                          fit: BoxFit.contain,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    const Text(
-                      'MiNegocio',
-                      style: TextStyle(
-                        fontSize: 30,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                    const Text(
-                      'UniMagdalena',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w400,
-                        color: Colors.white70,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // ── Panel de login ────────────────────────
-            Expanded(
-              flex: 3,
-              child: Container(
-                width: double.infinity,
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-                ),
-                padding: const EdgeInsets.all(28),
-                child: Form(
-                  key: _formKey,
+      body: AppLoadingOverlay(
+        // El overlay de carga cubre toda la pantalla mientras verifica
+        isLoading: _isLoading,
+        mensaje: 'Verificando correo…',
+        child: SafeArea(
+          child: Column(
+            children: [
+              // ── Header ───────────────────────────────
+              Expanded(
+                flex: 2,
+                child: Center(
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text('Acceder', style: AppTextStyles.heading1),
-                      const SizedBox(height: 6),
-                      const Text(
-                        'Ingresa tu correo institucional para continuar.',
-                        style: AppTextStyles.bodySecondary,
-                      ),
-                      const SizedBox(height: 28),
-                      AppFormField(
-                        label: 'Correo institucional',
-                        hint: 'usuario@unimagdalena.edu.co',
-                        controller: _correoController,
-                        keyboardType: TextInputType.emailAddress,
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'El correo es obligatorio';
-                          }
-                          if (!value
-                              .trim()
-                              .endsWith(AppConstants.dominioInstitucional)) {
-                            return 'Debe ser un correo @unimagdalena.edu.co';
-                          }
-                          return null;
-                        },
-                      ),
-                      if (_errorMensaje != null) ...[
-                        const SizedBox(height: 12),
-                        Container(
+                      Container(
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Padding(
                           padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: AppTheme.errorLight,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.error_outline,
-                                  color: AppTheme.errorColor, size: 18),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  _errorMensaje!,
-                                  style: const TextStyle(
-                                      color: AppTheme.errorColor, fontSize: 13),
-                                ),
-                              ),
-                            ],
+                          child: Image.asset(
+                            'assets/images/icon_no_bg.png',
+                            fit: BoxFit.contain,
                           ),
                         ),
-                      ],
-                      const SizedBox(height: 24),
-                      AppButton(
-                        texto: 'Verificar y entrar',
-                        onPressed: _verificarCorreo,
-                        isLoading: _isLoading,
-                        icono: Icons.login,
                       ),
-                      const SizedBox(height: 16),
-                      Center(
-                        child: Text(
-                          'Solo para estudiantes activos de la\nUniversidad del Magdalena',
-                          textAlign: TextAlign.center,
-                          style: AppTextStyles.bodySecondary
-                              .copyWith(fontSize: 12),
+                      const SizedBox(height: 20),
+                      const Text(
+                        'MiNegocio',
+                        style: TextStyle(
+                          fontSize: 30,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      const Text(
+                        'UniMagdalena',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w400,
+                          color: Colors.white70,
                         ),
                       ),
                     ],
                   ),
                 ),
               ),
-            ),
-          ],
+
+              // ── Panel de login ────────────────────────
+              Expanded(
+                flex: 3,
+                child: Container(
+                  width: double.infinity,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius:
+                        BorderRadius.vertical(top: Radius.circular(28)),
+                  ),
+                  padding: const EdgeInsets.all(28),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Acceder', style: AppTextStyles.heading1),
+                        const SizedBox(height: 6),
+                        const Text(
+                          'Ingresa tu correo institucional para continuar.',
+                          style: AppTextStyles.bodySecondary,
+                        ),
+                        const SizedBox(height: 28),
+                        AppFormField(
+                          label: 'Correo institucional',
+                          hint: 'usuario@unimagdalena.edu.co',
+                          controller: _correoController,
+                          keyboardType: TextInputType.emailAddress,
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'El correo es obligatorio';
+                            }
+                            if (!value
+                                .trim()
+                                .endsWith(
+                                    AppConstants.dominioInstitucional)) {
+                              return 'Debe ser un correo @unimagdalena.edu.co';
+                            }
+                            return null;
+                          },
+                        ),
+                        if (_errorMensaje != null) ...[
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppTheme.errorLight,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.error_outline,
+                                    color: AppTheme.errorColor, size: 18),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    _errorMensaje!,
+                                    style: const TextStyle(
+                                        color: AppTheme.errorColor,
+                                        fontSize: 13),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 24),
+                        AppButton(
+                          texto: 'Verificar y entrar',
+                          // isLoading sigue funcionando en el botón
+                          // pero ADEMÁS el overlay cubre toda la pantalla
+                          onPressed: _isLoading ? null : _verificarCorreo,
+                          isLoading: _isLoading,
+                          icono: Icons.login,
+                        ),
+                        const SizedBox(height: 16),
+                        Center(
+                          child: Text(
+                            'Solo para estudiantes activos de la\nUniversidad del Magdalena',
+                            textAlign: TextAlign.center,
+                            style: AppTextStyles.bodySecondary
+                                .copyWith(fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

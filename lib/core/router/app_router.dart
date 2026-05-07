@@ -7,9 +7,11 @@ import '../../features/sales/sales_screen.dart';
 import '../../features/inventory/inventory_screen.dart';
 import '../../features/accounting/accounting_screen.dart';
 import '../../features/settings/settings_screen.dart';
+import '../../features/splash/splash_screen.dart';
 import '../widgets/main_scaffold.dart';
 
 class AppRouter {
+  static const String splash = '/splash';
   static const String auth = '/auth';
   static const String home = '/';
   static const String compras = '/compras';
@@ -20,29 +22,35 @@ class AppRouter {
 
   static GoRouter createRouter(AuthProvider authProvider) {
     return GoRouter(
-      initialLocation: home,
+      initialLocation: splash,
       refreshListenable: authProvider,
       redirect: (context, state) {
         final status = authProvider.status;
 
-        // Mientras no sabemos el estado, no redirigir
-        if (status == AuthStatus.desconocido) return null;
+        // Si el estado es desconocido, mostrar el splash screen
+        if (status == AuthStatus.desconocido) {
+          if (state.matchedLocation != splash) return splash;
+          return null;
+        }
 
-        final isAuthRoute = state.matchedLocation == auth;
-
-        // Si no esta autenticado y no esta en auth -> mandar a auth
-        if (status != AuthStatus.autenticado && !isAuthRoute) {
+        // Si ya sabemos el estado, salir del splash
+        if (state.matchedLocation == splash) {
+          if (status == AuthStatus.autenticado) return home;
           return auth;
         }
 
-        // Si ya esta autenticado y esta en auth -> mandar al home
-        if (status == AuthStatus.autenticado && isAuthRoute) {
-          return home;
-        }
+        final isAuthRoute = state.matchedLocation == auth;
+
+        if (status != AuthStatus.autenticado && !isAuthRoute) return auth;
+        if (status == AuthStatus.autenticado && isAuthRoute) return home;
 
         return null;
       },
       routes: [
+        GoRoute(
+          path: splash,
+          builder: (context, state) => const SplashScreen(),
+        ),
         GoRoute(
           path: auth,
           builder: (context, state) => const AuthScreen(),
@@ -79,7 +87,7 @@ class AppRouter {
       ],
       errorBuilder: (context, state) => Scaffold(
         body: Center(
-          child: Text('Pagina no encontrada: ${state.error}'),
+          child: Text('Página no encontrada: ${state.error}'),
         ),
       ),
     );
