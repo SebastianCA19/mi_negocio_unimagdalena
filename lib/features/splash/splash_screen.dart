@@ -112,9 +112,9 @@ class _SplashScreenState extends State<SplashScreen>
                 position: _textSlide,
                 child: FadeTransition(
                   opacity: _textOpacity,
-                  child: Column(
+                  child: const Column(
                     children: [
-                      const Text(
+                      Text(
                         'MiNegocio',
                         style: TextStyle(
                           fontSize: 32,
@@ -166,7 +166,6 @@ class _PulsingDots extends StatelessWidget {
       children: List.generate(3, (i) {
         // Cada punto tiene un intervalo desplazado 1/3 del ciclo
         final begin = i / 3;
-        final mid = begin + 0.17;
         final end = begin + 0.33;
 
         final opacity = TweenSequence<double>([
