@@ -48,7 +48,18 @@ dependencies:
 
   # Selector de archivos
   file_picker: ^8.0.0
-  flutter_native_splash: ^2.4.7
+  flutter_native_splash: ^2.4.6
+
+  flutter_dotenv: ^5.1.0
+
+  # Cliente HTTP para consultar Supabase REST API
+  http: ^1.2.1
+
+   # Información del dispositivo (androidId / identifierForVendor)
+  device_info_plus: ^10.1.0
+ 
+  # Generador de UUID v4 (fallback para plataformas no soportadas)
+  uuid: ^4.4.0
 
 dev_dependencies:
 
@@ -60,6 +71,7 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
+    - .env
     - assets/images/
 
 flutter_launcher_icons:
