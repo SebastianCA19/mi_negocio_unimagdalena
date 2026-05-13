@@ -1,33 +1,15 @@
-import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-// ── Resultado de la verificación institucional ────────────────────────────────
-
 enum AuthCheckResult {
-  /// Correo no tiene el dominio institucional
   correoInvalido,
-
-  /// Sin conexión a internet
   sinConexion,
-
-  /// Error inesperado del servidor
   errorServidor,
-
-  /// El correo no existe en la base de datos institucional
   correoNoEncontrado,
-
-  /// UUID en BD es null → primer dispositivo, hay que vincularlo
   dispositivoSinVincular,
-
-  /// El UUID del dispositivo coincide con el de la BD → OK
   dispositivoVinculado,
-
-  /// El UUID NO coincide → dispositivo diferente al registrado
   dispositivoDiferente,
-
-  /// El email no coincide con el UUID registrado para este dispositivo
   emailNoCorresponde,
 }
 
@@ -85,8 +67,6 @@ class AuthCheckResponse {
   });
 }
 
-// ── Servicio principal ────────────────────────────────────────────────────────
-
 class AuthService {
   static String get _supabaseUrl =>
       dotenv.env['SUPABASE_URL'] ??
@@ -109,21 +89,17 @@ class AuthService {
     );
   }
 
-  // ── Verificación principal ─────────────────────────────────────────────────
-
   /// Verifica el correo y el UUID del dispositivo contra Supabase.
   ///
   /// Flujo:
-  /// 1. Validación de formato de correo (offline)
-  /// 2. Búsqueda del correo en la BD institucional
-  ///    a. No encontrado → [AuthCheckResult.correoNoEncontrado]
-  /// 3. Si device_uuid en BD es null → [AuthCheckResult.dispositivoSinVincular]
-  /// 4. Si device_uuid en BD == [deviceUuid] del dispositivo
-  ///    → [AuthCheckResult.dispositivoVinculado]
-  /// 5. Si device_uuid en BD != [deviceUuid]
-  ///    → buscar si el deviceUuid pertenece a otro registro
-  ///      - Sí: [AuthCheckResult.emailNoCorresponde]
-  ///      - No: [AuthCheckResult.dispositivoDiferente]
+  /// 1. Buscar el correo en la BD.
+  ///    - No encontrado → [correoNoEncontrado]
+  /// 2. Si device_uuid en BD es null → [dispositivoSinVincular]
+  /// 3. Si device_uuid en BD == deviceUuid → [dispositivoVinculado]
+  /// 4. Si device_uuid en BD != deviceUuid:
+  ///    - Buscar si ese deviceUuid está vinculado a OTRO correo:
+  ///      · Sí → [emailNoCorresponde]  (este dispositivo pertenece a otro)
+  ///      · No → [dispositivoDiferente] (el correo pertenece a otro dispositivo)
   static Future<AuthCheckResponse> verificarAcceso({
     required String email,
     required String deviceUuid,
@@ -135,7 +111,7 @@ class AuthService {
           .select()
           .eq('email', email.trim().toLowerCase())
           .limit(1)
-          .timeout(_timeout) as List<dynamic>;
+          .timeout(_timeout);
 
       // ── 2. Correo no existe en la BD ─────────────────────────────────────
       if (rowsEmail.isEmpty) {
@@ -145,8 +121,25 @@ class AuthService {
       final estudiante =
           EstudianteInfo.fromJson(rowsEmail.first as Map<String, dynamic>);
 
-      // ── 3. Sin UUID vinculado → primer dispositivo ───────────────────────
+      // ── 3. Sin UUID vinculado → verificar PRIMERO si el dispositivo
+      //       ya está registrado bajo otro correo antes de ofrecer vincular ──
       if (estudiante.deviceUuid == null || estudiante.deviceUuid!.isEmpty) {
+        final List<dynamic> rowsUuid = await Supabase.instance.client
+            .from(_tableName)
+            .select()
+            .eq('device_uuid', deviceUuid)
+            .limit(1)
+            .timeout(_timeout);
+
+        if (rowsUuid.isNotEmpty) {
+          // Este dispositivo ya pertenece a otro correo
+          return AuthCheckResponse(
+            result: AuthCheckResult.emailNoCorresponde,
+            estudiante: estudiante,
+          );
+        }
+
+        // Dispositivo libre → ofrecer vinculación
         return AuthCheckResponse(
           result: AuthCheckResult.dispositivoSinVincular,
           estudiante: estudiante,
@@ -161,30 +154,22 @@ class AuthService {
         );
       }
 
-      // ── 5. UUID no coincide → verificar si el UUID ya está registrado
-      //       bajo otro email (para dar mejor mensaje de error)
-
-      final List<dynamic> responseUuid = await Supabase.instance.client
+      // ── 5. UUID no coincide: verificar si este dispositivo ya está
+      //       registrado bajo OTRO correo ───────────────────────────────────
+      final List<dynamic> rowsUuid = await Supabase.instance.client
           .from(_tableName)
           .select()
           .eq('device_uuid', deviceUuid)
           .limit(1)
-          .timeout(_timeout) as List<dynamic>;
+          .timeout(_timeout);
 
-      if (responseUuid.isNotEmpty) {
-        final List<dynamic> rowsUuid = jsonDecode(responseUuid.first) as List;
-
-        if (rowsUuid.isNotEmpty) {
-          // Este dispositivo ya está vinculado a otro correo
-          return AuthCheckResponse(
-            result: AuthCheckResult.emailNoCorresponde,
-            estudiante: estudiante,
-          );
-        }
+      if (rowsUuid.isNotEmpty) {
+        return AuthCheckResponse(
+          result: AuthCheckResult.emailNoCorresponde,
+          estudiante: estudiante,
+        );
       }
 
-      // El UUID de este dispositivo no está en ningún registro,
-      // pero el email sí está vinculado a otro dispositivo
       return AuthCheckResponse(
         result: AuthCheckResult.dispositivoDiferente,
         estudiante: estudiante,
@@ -201,25 +186,24 @@ class AuthService {
     }
   }
 
-  // ── Vincular dispositivo ───────────────────────────────────────────────────
-
   /// Guarda el [deviceUuid] en la fila del [email] en Supabase.
-  /// Debe llamarse solo cuando el usuario aprueba la vinculación
-  /// ([AuthCheckResult.dispositivoSinVincular]).
+  /// En supabase_flutter v2, .update() sin .select() retorna void.
+  /// Usamos .select() para confirmar que la fila fue efectivamente modificada.
   static Future<bool> vincularDispositivo({
     required String email,
     required String deviceUuid,
   }) async {
     try {
-      final List<dynamic> response = await Supabase.instance.client
+      final List<dynamic> updated = await Supabase.instance.client
           .from(_tableName)
           .update({'device_uuid': deviceUuid})
           .eq('email', email.trim().toLowerCase())
-          .timeout(_timeout) as List<dynamic>;
+          .select()
+          .timeout(_timeout);
 
-      // Supabase devuelve 204 No Content en PATCH exitoso
-      return response.isEmpty;
-    } catch (_) {
+      // Si retorna al menos una fila, el update fue exitoso
+      return updated.isNotEmpty;
+    } on Exception {
       return false;
     }
   }

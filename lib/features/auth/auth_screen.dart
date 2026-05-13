@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
+import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/util/app_constants.dart';
 import '../../core/widgets/app_widgets.dart';
@@ -108,9 +110,9 @@ class _AuthScreenState extends State<AuthScreen> {
           nombre: estudiante.primerNombre,
           apellido: estudiante.primerApellido,
         );
-    if (mounted) {
-      AppSnackBar.success(context, AppMessages.msjSesionOk);
-    }
+    if (!mounted) return;
+    AppSnackBar.success(context, AppMessages.msjSesionOk);
+    context.go(AppRouter.home);
   }
 
   // ── Modal: Vincular primer dispositivo ────────────────────────────────────
@@ -175,7 +177,6 @@ class _AuthScreenState extends State<AuthScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      resizeToAvoidBottomInset: false,
       backgroundColor: AppTheme.primaryColor,
       body: AppLoadingOverlay(
         isLoading: _isLoading,
@@ -231,67 +232,72 @@ class _AuthScreenState extends State<AuthScreen> {
               // ── Panel de login ──────────────────────
               Expanded(
                 flex: 3,
-                child: Container(
-                  width: double.infinity,
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    borderRadius:
-                        BorderRadius.vertical(top: Radius.circular(28)),
-                  ),
-                  padding: const EdgeInsets.all(28),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Acceder', style: AppTextStyles.heading1),
-                        const SizedBox(height: 6),
-                        const Text(
-                          'Ingresa tu correo institucional para continuar.',
-                          style: AppTextStyles.bodySecondary,
-                        ),
-                        const SizedBox(height: 28),
-                        AppFormField(
-                          label: 'Correo institucional',
-                          hint: 'usuario@unimagdalena.edu.co',
-                          controller: _correoController,
-                          keyboardType: TextInputType.emailAddress,
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'El correo es obligatorio';
-                            }
-                            if (!value
-                                .trim()
-                                .endsWith(AppConstants.dominioInstitucional)) {
-                              return 'Debe ser un correo @unimagdalena.edu.co';
-                            }
-                            return null;
-                          },
-                        ),
-
-                        // Banner de error
-                        if (_errorMensaje != null) ...[
-                          const SizedBox(height: 12),
-                          _BannerError(mensaje: _errorMensaje!),
-                        ],
-
-                        const SizedBox(height: 24),
-                        AppButton(
-                          texto: 'Verificar y entrar',
-                          onPressed: _isLoading ? null : _verificarCorreo,
-                          isLoading: _isLoading,
-                          icono: Icons.login,
-                        ),
-                        const SizedBox(height: 16),
-                        Center(
-                          child: Text(
-                            'Solo para estudiantes activos de la\nUniversidad del Magdalena',
-                            textAlign: TextAlign.center,
-                            style: AppTextStyles.bodySecondary
-                                .copyWith(fontSize: 12),
+                child: SingleChildScrollView(
+                  child: Container(
+                    width: double.infinity,
+                    // Altura mínima para llegar siempre al fondo de la pantalla
+                    constraints: BoxConstraints(
+                      minHeight: MediaQuery.of(context).size.height * 0.6,
+                    ),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      borderRadius:
+                          BorderRadius.vertical(top: Radius.circular(28)),
+                    ),
+                    padding: const EdgeInsets.all(28),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Acceder', style: AppTextStyles.heading1),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'Ingresa tu correo institucional para continuar.',
+                            style: AppTextStyles.bodySecondary,
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 28),
+                          AppFormField(
+                            label: 'Correo institucional',
+                            hint: 'usuario@unimagdalena.edu.co',
+                            controller: _correoController,
+                            keyboardType: TextInputType.emailAddress,
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'El correo es obligatorio';
+                              }
+                              if (!value.trim().endsWith(
+                                  AppConstants.dominioInstitucional)) {
+                                return 'Debe ser un correo @unimagdalena.edu.co';
+                              }
+                              return null;
+                            },
+                          ),
+
+                          // Banner de error
+                          if (_errorMensaje != null) ...[
+                            const SizedBox(height: 12),
+                            _BannerError(mensaje: _errorMensaje!),
+                          ],
+
+                          const SizedBox(height: 24),
+                          AppButton(
+                            texto: 'Verificar y entrar',
+                            onPressed: _isLoading ? null : _verificarCorreo,
+                            isLoading: _isLoading,
+                            icono: Icons.login,
+                          ),
+                          const SizedBox(height: 16),
+                          Center(
+                            child: Text(
+                              'Solo para estudiantes activos de la\nUniversidad del Magdalena',
+                              textAlign: TextAlign.center,
+                              style: AppTextStyles.bodySecondary
+                                  .copyWith(fontSize: 12),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
