@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 // ── Resultado de la verificación institucional ────────────────────────────────
 
@@ -88,45 +88,26 @@ class AuthCheckResponse {
 // ── Servicio principal ────────────────────────────────────────────────────────
 
 class AuthService {
-  // Las credenciales se leen del archivo .env en la raíz del proyecto.
-  //
-  // Variables requeridas:
-  //   API_ACCESS_URL  → URL base del proyecto Supabase
-  //                     Ejemplo: https://xyzabc.supabase.co
-  //
-  //   API_ANON_KEY    → Clave pública anon/public de Supabase
-  //                     (Settings → API → Project API keys → anon public)
-  //                     Empieza con "eyJ..."
-  //
-  // DATABASE_PASSWORD y DATABASE_NAME son la contraseña y nombre de la base
-  // de datos PostgreSQL directa; NO se usan aquí porque la REST API de
-  // Supabase se autentica con el anon key, no con la contraseña de postgres.
-
   static String get _supabaseUrl =>
-      dotenv.env['API_ACCESS_URL'] ??
-      (throw Exception('Falta API_ACCESS_URL en el archivo .env'));
+      dotenv.env['SUPABASE_URL'] ??
+      (throw Exception('Falta SUPABASE_URL en el archivo .env'));
 
-  static String get _supabaseAnonKey =>
-      dotenv.env['API_ANON_KEY'] ??
-      (throw Exception('Falta API_ANON_KEY en el archivo .env'));
+  static String get _supabasePublishableKey =>
+      dotenv.env['SUPABASE_PUBLISHABLE_KEY'] ??
+      (throw Exception('Falta SUPABASE_PUBLISHABLE_KEY en el archivo .env'));
 
-  static const String _tableName = 'estudiantes';
+  static String get _tableName =>
+      dotenv.env['TABLE_NAME'] ??
+      (throw Exception('Falta TABLE_NAME en el archivo .env'));
+
   static const Duration _timeout = Duration(seconds: 10);
 
-  /// Endpoint REST de Supabase para la tabla de estudiantes
-  static Uri _buildUri({Map<String, String>? queryParams}) {
-    final uri = Uri.parse('${_supabaseUrl.trimRight()}/rest/v1/$_tableName');
-    if (queryParams != null) {
-      return uri.replace(queryParameters: queryParams);
-    }
-    return uri;
+  static Future<void> initializeSupabase() async {
+    await Supabase.initialize(
+      url: _supabaseUrl,
+      anonKey: _supabasePublishableKey,
+    );
   }
-
-  static Map<String, String> get _headers => {
-        'apikey': _supabaseAnonKey,
-        'Authorization': 'Bearer $_supabaseAnonKey',
-        'Content-Type': 'application/json',
-      };
 
   // ── Verificación principal ─────────────────────────────────────────────────
 
@@ -149,27 +130,12 @@ class AuthService {
   }) async {
     try {
       // ── 1. Buscar el registro por email ──────────────────────────────────
-      final responseEmail = await http
-          .get(
-            _buildUri(queryParams: {
-              'email': 'eq.${email.trim().toLowerCase()}',
-              'select':
-                  'email,first_name,middle_name,first_surname,second_surname,device_uuid',
-              'limit': '1',
-            }),
-            headers: _headers,
-          )
-          .timeout(_timeout);
-
-      if (responseEmail.statusCode != 200) {
-        return AuthCheckResponse(
-          result: AuthCheckResult.errorServidor,
-          mensajeError:
-              'Error del servidor (${responseEmail.statusCode}). Inténtalo más tarde.',
-        );
-      }
-
-      final List<dynamic> rowsEmail = jsonDecode(responseEmail.body) as List;
+      final List<dynamic> rowsEmail = await Supabase.instance.client
+          .from(_tableName)
+          .select()
+          .eq('email', email.trim().toLowerCase())
+          .limit(1)
+          .timeout(_timeout) as List<dynamic>;
 
       // ── 2. Correo no existe en la BD ─────────────────────────────────────
       if (rowsEmail.isEmpty) {
@@ -197,19 +163,16 @@ class AuthService {
 
       // ── 5. UUID no coincide → verificar si el UUID ya está registrado
       //       bajo otro email (para dar mejor mensaje de error)
-      final responseUuid = await http
-          .get(
-            _buildUri(queryParams: {
-              'device_uuid': 'eq.$deviceUuid',
-              'select': 'email',
-              'limit': '1',
-            }),
-            headers: _headers,
-          )
-          .timeout(_timeout);
 
-      if (responseUuid.statusCode == 200) {
-        final List<dynamic> rowsUuid = jsonDecode(responseUuid.body) as List;
+      final List<dynamic> responseUuid = await Supabase.instance.client
+          .from(_tableName)
+          .select()
+          .eq('device_uuid', deviceUuid)
+          .limit(1)
+          .timeout(_timeout) as List<dynamic>;
+
+      if (responseUuid.isNotEmpty) {
+        final List<dynamic> rowsUuid = jsonDecode(responseUuid.first) as List;
 
         if (rowsUuid.isNotEmpty) {
           // Este dispositivo ya está vinculado a otro correo
@@ -248,18 +211,14 @@ class AuthService {
     required String deviceUuid,
   }) async {
     try {
-      final response = await http
-          .patch(
-            _buildUri(queryParams: {
-              'email': 'eq.${email.trim().toLowerCase()}',
-            }),
-            headers: _headers,
-            body: jsonEncode({'device_uuid': deviceUuid}),
-          )
-          .timeout(_timeout);
+      final List<dynamic> response = await Supabase.instance.client
+          .from(_tableName)
+          .update({'device_uuid': deviceUuid})
+          .eq('email', email.trim().toLowerCase())
+          .timeout(_timeout) as List<dynamic>;
 
       // Supabase devuelve 204 No Content en PATCH exitoso
-      return response.statusCode == 200 || response.statusCode == 204;
+      return response.isEmpty;
     } catch (_) {
       return false;
     }

@@ -27,7 +27,11 @@ class _AuthScreenState extends State<AuthScreen> {
     super.dispose();
   }
 
-  // ── Punto de entrada ───────────────────────────────────────────────────────
+  @override
+  void initState() {
+    super.initState();
+    AuthService.initializeSupabase();
+  }
 
   Future<void> _verificarCorreo() async {
     if (!_formKey.currentState!.validate()) return;

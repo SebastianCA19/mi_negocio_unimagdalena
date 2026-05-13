@@ -55,6 +55,9 @@ dependencies:
   # Cliente HTTP para consultar Supabase REST API
   http: ^1.2.1
 
+  #Supabase Client
+  supabase_flutter: ^2.0.0
+
    # Información del dispositivo (androidId / identifierForVendor)
   device_info_plus: ^10.1.0
  
